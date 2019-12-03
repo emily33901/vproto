@@ -1,0 +1,15 @@
+package foo;
+
+enum Test {
+    enabled = 0;
+    disabled = 5;
+}
+
+message Simple {
+    required int32 id = 1;
+    optional string name = 2;
+    
+    repeated int32 other = 3;
+
+    required Test enum_test = 4;
+}
