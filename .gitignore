@@ -1,1 +1,6 @@
 build/
+*.exe
+*.ilk
+*.pdb
+fns.txt
+.vs

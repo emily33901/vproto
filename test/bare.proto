@@ -1,0 +1,15 @@
+syntax = "proto2";
+
+package foo;
+
+import "simple.proto";
+
+option java_package = "com.f1ssi0n.vproto";
+
+enum testEnum {
+  y = 23;
+  z = 66;
+  yy = 13;
+
+  option custom_option = true;
+}
