@@ -82,7 +82,7 @@ fn (p & Parser) current_file() &ProtoFile {
 }
 
 fn (p &Parser) report_error(text string) {
-	panic('${p.current_file().filename}:${p.line+1}:${p.cur_char()}: $text')
+	panic('\n${p.current_file().filename}:${p.line+1}:${p.cur_char()}: $text\n')
 }
 
 fn (p &Parser) end_of_file() bool {
@@ -382,9 +382,6 @@ fn (p mut Parser) consume_hex() ?string {
 fn (p mut Parser) consume_integral() ?string {
 	// intLit     = decimalLit | octalLit | hexLit
 
-	// TODO return to this when it is fixed
-	// return p.consume_decimal() or { return p.consume_hex() or { return p.consume_octal() or { return none } } }
-
 	if x := p.consume_hex() { return x }
 	if x := p.consume_octal() { return x }
 	if x := p.consume_decimal() { return x }
@@ -484,7 +481,7 @@ fn (p mut Parser) consume_bool_lit() ?string {
 }
 
 enum LitType {
-	ident
+	ident = 0
 	integral
 	float
 	str
@@ -492,7 +489,7 @@ enum LitType {
 }
 
 struct Literal {
-	t LitType
+	t LitType [json:'type']
 	value string
 }
 
@@ -915,7 +912,7 @@ fn (p mut Parser) consume_field_type(limit_types bool) ?string {
 
 struct Field {
 	label string
-	ident string
+	name string
 	t string
 	number string // int literal
 
@@ -1217,13 +1214,9 @@ fn (p mut Parser) consume_reserved() ?Reserved {
 
 	p.consume_whitespace()
 
-	mut reserved := []string
-	mut is_ranges := true
-
-
 	if p.next_char() == `"` {
-		is_ranges = false
 		// This is reserved on field names not ranges
+		mut reserved := []string
 		for {
 			if p.end_of_file() { p.report_error('reached end of file in reserved field') }
 
@@ -1242,14 +1235,16 @@ fn (p mut Parser) consume_reserved() ?Reserved {
 		}
 
 		p.consume_char()
+
+		return Reserved{false, reserved}
 	} else {
-		reserved = p.consume_ranges() or {
+		ranges := p.consume_ranges() or {
 			p.report_error('Expected ranges in reserved field')
 			panic('') // appease compiler
 		}
-	}
 
-	return Reserved{is_ranges, reserved}
+		return Reserved{true, ranges}
+	}
 }
 
 struct Message {
@@ -1505,10 +1500,173 @@ fn (p mut Parser) parse() {
 			} else {
 				p.file_inputs << new_path
 			}
+		}
+	}
+}
 
+fn (p &Parser) report_invalid(text string) {
+	println('\nerror: $text')
+}
+
+struct Range {
+	min i64
+	max i64
+
+	taken_by string
+}
+
+struct RangeHelper {
+mut:
+	ranges []Range
+}
+
+fn (r &RangeHelper) is_range_taken(min, max i64) []string {
+	mut owners := []string
+
+	for _, range in r.ranges {
+		if range.min <= max && min <= range.max {
+			// overlap
+			owners << range.taken_by
 		}
 	}
 
+	return owners
+}
+
+fn (r mut RangeHelper) add_new_range(min, max i64, owned_by string) {
+	r.ranges << Range{min, max, owned_by}
+}
+
+fn (p &Parser) check_message_field_numbers(message Message) {
+	used_ranges := map[string][]string
+
+	mut ranges := RangeHelper{}
+
+	for _, field in message.fields {
+		number := field.number.i64()
+		owners := ranges.is_range_taken(number, number)
+		
+		if owners.len > 0 {
+			p.report_invalid('Overlap of field number `$field.number` in `$message.name`\n`$field.name` attempted to use it but it was taken by `${owners}`')
+		}
+
+		ranges.add_new_range(number, number, field.name)
+	}
+
+	for _, oneof in message.oneofs {
+		for _, field in oneof.fields {
+			if field.number in used_ranges {
+				number := field.number.i64()
+				owners := ranges.is_range_taken(number, number)
+				
+				if owners.len > 0 {
+					p.report_invalid('Overlap of field number `$field.number` in `$message.name`\n`$field.name` attempted to use it but it was taken by `${owners}`')
+				}
+
+				ranges.add_new_range(number, number, field.name)
+			}
+		}
+	}
+
+	for _, field in message.map_fields {
+		number := field.number.i64()
+		owners := ranges.is_range_taken(number, number)
+		
+		if owners.len > 0 {
+			p.report_invalid('Overlap of field number `$field.number` in `$message.name`\n`$field.name` attempted to use it but it was taken by `${owners}`')
+		}
+
+		ranges.add_new_range(number, number, field.name)
+	}
+
+	// now parse the range ones
+	for _, ext in message.extensions {
+		for _, range in ext.ranges {
+			// TODO cleanup when if x := opt() has else block
+
+			mut lower := i64(range.i64())
+			mut upper := i64(range.i64())
+
+			if x := range.index(' to ') {
+				// actual range not just a single number
+				values := range.split(' to ')
+				lower = values[0].i64()
+
+				if values[1] != 'max' {
+					upper = values[1].i64()
+				} else {
+					upper = 536870911
+				}
+			}
+
+			owners := ranges.is_range_taken(lower, upper)
+
+			if owners.len > 0 {
+				p.report_invalid('Overlap of field number `$lower to $upper` in `$message.name`\n`extensions` attempted to use it but it was taken by `${owners}`')
+			}
+
+			ranges.add_new_range(lower, upper, 'extensions')
+		}
+	}
+
+	// TODO cut n paste
+
+	for _, res in message.reserveds {
+		if !res.is_ranges {
+			continue
+		}
+
+		for _, range in res.fields {
+			// TODO cleanup when if x := opt() has else block
+			mut lower := i64(range.i64())
+			mut upper := i64(range.i64())
+
+			if x := range.index(' to ') {
+				// actual range not just a single number
+				values := range.split(' to ')
+				lower = values[0].i64()
+
+				if values[1] != 'max' {
+					upper = values[1].i64()
+				} else {
+					upper = 536870911
+				}
+			}
+
+			owners := ranges.is_range_taken(lower, upper)
+
+			if owners.len > 0 {
+				p.report_invalid('Overlap of field number `$lower to $upper` in `$message.name`\n`reserveds` attempted to use it but it was taken by `${owners}`')
+			}
+
+			ranges.add_new_range(lower, upper, 'reserveds')
+
+		}
+	}
+}
+
+fn (p &Parser) check_field_numbers() {
+	for _, file in p.files {
+		for _, message in file.messages {
+			p.check_message_field_numbers(message)
+		}
+	}
+}
+
+fn (p &Parser) find_valid_options() {
+
+}
+
+fn (p &Parser) validate() {
+	// Check whether everything is gucci or not
+
+	// - check that field numbers do not overlap
+	p.check_field_numbers()
+	// - check that field names do not overlap
+	// - check field numbers are in the correct range
+	// - check that types exist where they should
+
+	// - check that options are valid
 }
 
 fn main() {
@@ -1522,6 +1680,7 @@ fn main() {
 	mut p := Parser{file_inputs: [args.filename], imports: args.imports, quiet: args.quiet}
 
 	p.parse()
+	p.validate()
 
-	println('${json.encode(p)}')
+	// println('${json.encode(p)}')
 }

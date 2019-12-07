@@ -1,15 +1,9 @@
-# very-protobuf
+# vproto
 
 Implementation of protobuf for the V programming language.
 
-Incredibly WIP!! - does not even generate a V file.
+## Progress
 
-This will eventually probably turn into a protoc plugin but since I cannot get that to work right now its just in standalone mode!
+Right now the all V protobuf parser can parse most of the proto2 spec (enough to parse most of the protobufs in the steam database repository). No attempt has been made to make proto3 work and services are not currently parsed. All the parser does right now is dump a json version of what its parsed to stdout.
 
-Based on the work done by the creators of [protobuf-c](https://github.com/protobuf-c/protobuf-c)
-
-## To build
-
-Make directory `build` in `build-cmake` and `cmake ..` in there.
-
-If you're using vcpkg or visual studio pass the correct parameters now so that it can find libprotobuf and similar packages (e.g. `cmake -G "Visual Studio 15 2017" -A x64 -DCMAKE_TOOLCHAIN_FILE=E:\src\vcpkg\scripts\buildsystems\vcpkg.cmake ..`).
+No attempt is made to check if any of the definitions are valid or if the options people use exist or similar.

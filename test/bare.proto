@@ -43,10 +43,13 @@ message testMessage {
 
   map<string, Project> projects = 3;
 
+  optional string test22 = 10;
+
   extensions 10, 20 to max;
-  reserved 1;
+  reserved 1, 10 to 20;
+  extensions 1 to max;
 }
 
 service DirLookup {
-  rpc ByName (Name) returns (LookupResult);
+  rpc ByName(Name) returns (LookupResult);
 }
