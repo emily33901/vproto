@@ -1,8 +1,9 @@
 module main
 
 import os
-
 import flag
+import json
+
 
 struct Args {
 mut:
@@ -31,7 +32,6 @@ fn parse_args() Args {
 
 const (
 	whitespace = [` `, `\t`, `\n`, `\r`]
-	comment = '//'
 )
 
 enum ProtoSyntax {
@@ -43,11 +43,13 @@ struct Parser {
 	filename string // current file
 
 mut:
-	text string // file text
-	char int // current char index
+	path string
 
-	line int
-	line_char int // The char that the new line was on
+	text string [skip] // file text
+	char int [skip] // current char index
+
+	line int [skip]
+	line_char int [skip] // The char that the new line was on
 
 	syntax ProtoSyntax // syntax of the file
 	
@@ -195,7 +197,11 @@ fn (p &Parser) next_ident() string {
 
 		c := text[text.len-1]
 
-		if !c.is_digit() && !c.is_letter() && c != `_` { break }
+		if (1 > 0 && c.is_digit()) || c.is_letter() || c == `_` {
+			continue
+		}
+	
+		break
 	}
 
 	return p.next_chars(i-1)
@@ -210,7 +216,11 @@ fn (p &Parser) next_full_ident() string {
 
 		c := text[text.len-1]
 
-		if !c.is_digit() && !c.is_letter() && c != `_` && c != `.` { break }
+		if (i > 1 && (c.is_digit() || c == `.`)) || c.is_letter() || c == `_` {
+			continue
+		}
+
+		break
 	}
 
 	return p.next_chars(i-1)
@@ -467,10 +477,6 @@ struct Literal {
 	value string
 }
 
-fn (l Literal) str() string {
-	return '($l.t)`$l.value`'
-}
-
 fn (p mut Parser) consume_lit() ?Literal {
 	// constant = fullIdent | ( [ "-" | "+" ] intLit ) | ( [ "-" | "+" ] floatLit ) |
     //             strLit | boolLit 
@@ -552,12 +558,6 @@ struct Import {
 	package string
 }
 
-pub fn (i Import) str() string {
-	weak := if i.weak { 'weak ' } else { '' }
-	public := if i.public { 'public ' } else { '' }
-	return '$weak$public$i.package'
-}
-
 // TODO should these return ?Import and then Parser.parse() adds them?
 fn (p mut Parser) consume_import() {
 	p.consume_whitespace()
@@ -631,10 +631,6 @@ struct OptionField {
 	value Literal
 }
 
-pub fn (o OptionField) str() string {
-	return '$o.ident = $o.value'
-}
-
 fn (p mut Parser) consume_option() ?OptionField {
 	p.consume_whitespace()
 
@@ -652,7 +648,7 @@ fn (p mut Parser) consume_option() ?OptionField {
 	// TODO consume "optionName" properly
 	// at the moment we are only handling the fullIdent part
 
-	ident := p.consume_full_ident() or {
+	ident := p.consume_option_ident() or {
 		p.report_error('Expected identifier in option statement')
 		'' // appease compiler
 	}
@@ -676,8 +672,43 @@ struct FieldOption {
 	value Literal
 }
 
-pub fn (o FieldOption) str() string {
-	return '$o.ident = $o.value'
+fn (p mut Parser) consume_option_ident() ?string {
+	mut ident := ''
+	
+	if p.next_char() == `(` {
+		ident += p.consume_char().str()
+
+		p.consume_whitespace()
+
+		base := p.consume_full_ident() or {
+			p.report_error('Expected full identifier in option identifier after `(`')
+			'' // appease compiler
+		}
+
+		p.consume_whitespace()
+
+		if p.consume_char() != `)` { p.report_error('Expected `)` after full identifier in option') }
+
+		ident += base + ')'
+	} else {
+		base := p.consume_ident() or {
+			// just not here so dont do anything
+			return none
+		}
+		ident += base
+	}
+
+	if p.next_char() == `.` {
+		ident += p.consume_char().str()
+
+		other := p.consume_full_ident() or { 
+			p.report_error('Expected full ident after `.` in option identifier') 
+			'' // appease compiler
+		}
+		ident += other
+	}
+
+	return ident
 }
 
 fn (p mut Parser) consume_field_options() []FieldOption {
@@ -692,7 +723,7 @@ fn (p mut Parser) consume_field_options() []FieldOption {
 
 		if p.next_char() == `]` { break }
 	
-		ident := p.consume_ident() or {
+		ident := p.consume_option_ident() or {
 			p.report_error('Expected identifier in field option')
 			'' // appease compiler
 		}
@@ -730,10 +761,6 @@ struct EnumField {
 	value Literal // int literal
 
 	options []FieldOption
-}
-
-pub fn (e EnumField) str() string {
-	return '$e.ident $e.value $e.options'
 }
 
 fn (p mut Parser) consume_enum_field() ?EnumField {
@@ -778,10 +805,6 @@ struct Enum {
 	name string
 	options []OptionField
 	fields []EnumField
-}
-
-pub fn (e Enum) str() string {
-	return 'Enum: $e.name | fields: $e.fields | options: $e.options'
 }
 
 fn (p mut Parser) consume_enum_body(name string) Enum {
@@ -856,9 +879,17 @@ fn (p mut Parser) consume_field_type(limit_types bool) ?string {
 			panic('') // should never happen
 		}
 		return ident
-	} else if ident != '' && !limit_types {
-		return p.consume_full_ident()
+	} else if !limit_types {
+		if ident != '' {
+			return p.consume_full_ident()
+		} else if p.next_char() == `.` {
+			p.consume_char()
+
+			return p.consume_full_ident()
+		}
 	}
+
+	println('ident is $ident')
 
 	return none
 }
@@ -900,7 +931,7 @@ fn (p mut Parser) consume_field(is_oneof_field bool) ?Field {
 	}
 
 	t := p.consume_field_type(false) or {
-		p.report_error('Expected valid type in field')
+		p.report_error('Expected valid type in field (got ${p.next_chars(6)}...)')
 
 		panic('') // appease compiler
 	}
@@ -948,12 +979,16 @@ fn (p mut Parser) consume_extend() ?Extend {
 
 	p.consume_known_ident()
 
+	p.consume_whitespace()
+
 	t := p.consume_field_type(false) or {
 		p.report_error('Expected valid message type after extend')
 		'' // appease compiler
 	}
 
 	p.consume_whitespace()
+
+	if p.consume_char() != `{` { p.report_error('Expected `{` after extend identifer') }
 
 	mut fields := []Field
 
@@ -973,7 +1008,7 @@ fn (p mut Parser) consume_extend() ?Extend {
 		}
 	}
 
-	p.consume_char()
+	if p.consume_char() != `}` { p.report_error('Expected `}` after extend identifer') }
 
 	return Extend{t, fields}
 
@@ -1203,7 +1238,7 @@ struct Message {
 
 	fields []Field
 	enums []Enum
-	messages []Message
+	messages []Message [skip]
 	extends []Extend
 	extensions []Extension
 	options []OptionField
@@ -1376,8 +1411,6 @@ fn (p mut Parser) parse() {
 	}
 	p.text = text
 
-	println('$text')
-
 	// proto = syntax { import | package | option | topLevelDef | emptyStatement }
 
 	p.consume_syntax()
@@ -1398,20 +1431,6 @@ fn (p mut Parser) parse() {
 	}
 }
 
-pub fn (p Parser) str() string {
-	return 'File $p.filename:
-> syntax:
-$p.syntax\n
-> package:
-$p.package\n
-> imports:
-$p.imports\n
-> options:
-$p.options\n
-> enums:
-$p.enums'
-}
-
 fn main() {
 	args := parse_args()
 
@@ -1424,5 +1443,5 @@ fn main() {
 
 	p.parse()
 
-	println('$p')
+	println('${json.encode(p)}')
 }
