@@ -3,12 +3,15 @@ module main
 import os
 import flag
 import json
+import filepath
 
 
 struct Args {
 mut:
 	filename string
 	additional []string
+	imports []string
+	quiet bool
 }
 
 fn parse_args() Args {
@@ -16,12 +19,16 @@ fn parse_args() Args {
 
 	mut fp := flag.new_flag_parser(os.args)
 	fp.application('vproto')
-	fp.version('v0.0.0')
+	fp.version('v0.0.1')
 	fp.description('V protocol buffers parser')
 
 	fp.skip_executable()
 
 	args.filename = fp.string('filename', '', 'Filename of proto to parse')
+	im := fp.string('import', '', 'Add a directory to imports')
+	args.imports << im
+
+	args.quiet = fp.bool('quiet', false, 'Supress warnings and messages')
 
 	args.additional = fp.finalize() or {
 		panic(err)
@@ -39,20 +46,13 @@ enum ProtoSyntax {
 	proto3
 }
 
-struct Parser {
-	filename string // current file
-
+struct ProtoFile {
 mut:
+	filename string 
 	path string
 
-	text string [skip] // file text
-	char int [skip] // current char index
-
-	line int [skip]
-	line_char int [skip] // The char that the new line was on
-
 	syntax ProtoSyntax // syntax of the file
-	
+
 	package string
 	imports []Import
 	options []OptionField
@@ -62,8 +62,27 @@ mut:
 	services []Service
 }
 
+struct Parser {
+mut:
+	file_inputs []string
+	imports []string // paths imported on the cmd line
+	quiet bool // whether to supress messages
+
+	text string [skip] // file text
+	char int [skip] // current char index
+
+	line int [skip]
+	line_char int [skip] // The char that the new line was on
+
+	files []ProtoFile
+}
+
+fn (p & Parser) current_file() &ProtoFile {
+	return &p.files[p.files.len-1]
+}
+
 fn (p &Parser) report_error(text string) {
-	panic('$p.filename:${p.line+1}:${p.cur_char()}: $text')
+	panic('${p.current_file().filename}:${p.line+1}:${p.cur_char()}: $text')
 }
 
 fn (p &Parser) end_of_file() bool {
@@ -525,7 +544,7 @@ fn (p mut Parser) consume_syntax() {
 
 	// if there is no 'syntax' then this cant be parsed right now
 	if p.next_full_ident() != 'syntax' { 
-		p.syntax = .proto2
+		p.current_file().syntax = .proto2
 		return 
 	}
 
@@ -546,9 +565,9 @@ fn (p mut Parser) consume_syntax() {
 	if p.consume_char() != `;` { p.report_error('Expected `;` in syntax statement') }
 
 	if proto_version == 'proto2' {
-		p.syntax = .proto2
+		p.current_file().syntax = .proto2
 	} else if proto_version == 'proto3' {
-		p.syntax = .proto3
+		p.current_file().syntax = .proto3
 	}
 }
 
@@ -595,7 +614,7 @@ fn (p mut Parser) consume_import() {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in import statement') }
 
-	p.imports << Import{weak, public, package}
+	p.current_file().imports << Import{weak, public, package}
 }
 
 fn (p mut Parser) consume_package() {
@@ -620,7 +639,7 @@ fn (p mut Parser) consume_package() {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in package statement') }
 
-	p.package = ident
+	p.current_file().package = ident
 }
 
 // TODO make the distinction between OptionField and FieldOption more distinct
@@ -1384,16 +1403,16 @@ fn (p mut Parser) consume_top_level_def() {
 	p.consume_whitespace()
 	
 	if m := p.consume_message() {
-		p.messages << m
+		p.current_file().messages << m
 	}
 	if e := p.consume_enum() {
-		p.enums << e
+		p.current_file().enums << e
 	}
 	if ex := p.consume_extend() {
-		p.extends << ex
+		p.current_file().extends << ex
 	}
 	if s := p.consume_service() {
-		p.services << s
+		p.current_file().services << s
 	}
 }
 
@@ -1406,29 +1425,90 @@ fn (p mut Parser) consume_empty_statement() {
 }
 
 fn (p mut Parser) parse() {
-	text := os.read_file(p.filename) or {
-		panic(err)
-	}
-	p.text = text
+	for i := 0; ; i++ {
+		if i >= p.file_inputs.len { break }
 
-	// proto = syntax { import | package | option | topLevelDef | emptyStatement }
+		filename := p.file_inputs[i]
 
-	p.consume_syntax()
-
-	for {
-		p.consume_whitespace()
-		p.consume_import()
-		p.consume_package()
-		
-		if o := p.consume_option() {
-			p.options << o
+		text := os.read_file(filename) or {
+			panic(err)
 		}
 
-		p.consume_top_level_def()
+		// reset the parser
+		p.text = text
+		p.line = 0
+		p.line_char = 0
+		p.char = 0
+		p.files << ProtoFile{filename: filename, path: filename}
 
-		p.consume_empty_statement()
-		if p.end_of_file() { break }
+		// proto = syntax { import | package | option | topLevelDef | emptyStatement }
+
+		p.consume_syntax()
+
+		if p.current_file().syntax == .proto3 {
+			p.report_error('Unable to parse proto3 files right now...')
+		}
+
+		for {
+			p.consume_whitespace()
+			p.consume_import()
+			p.consume_package()
+			
+			if o := p.consume_option() {
+				p.current_file().options << o
+			}
+
+			p.consume_top_level_def()
+
+			p.consume_empty_statement()
+			if p.end_of_file() { break }
+		}
+
+		// parsed this file
+		// see if we have any imports that need resolving
+
+		for _, im in p.current_file().imports {
+			// TODO if the proto isnt in this folder than we need to check
+			// other include folders for it
+			mut new_path := os.realpath(filepath.join(os.realpath(p.current_file().path).all_before_last(os.path_separator), im.package))
+
+
+			if !p.quiet { println('importing $im.package ...') }
+
+			mut found := false
+
+			if !os.exists(new_path) {
+				found = false
+
+				// Check in the import paths
+				for _, im_path in p.imports {
+					path := os.realpath(filepath.join(os.realpath(im_path), im.package))
+
+					if !p.quiet { println('> Trying $path') }
+					
+					if os.exists(path) {
+						new_path = path
+						found = true
+						break
+					}
+				}
+
+			} else {
+				found = true
+			}
+
+			if !found {
+				p.report_error('Unable to find $new_path')
+			}
+
+			if new_path in p.file_inputs {
+			} else {
+				p.file_inputs << new_path
+			}
+
+		}
 	}
+
 }
 
 fn main() {
@@ -1439,7 +1519,7 @@ fn main() {
 		return
 	}
 
-	mut p := Parser{filename: args.filename}
+	mut p := Parser{file_inputs: [args.filename], imports: args.imports, quiet: args.quiet}
 
 	p.parse()
 
