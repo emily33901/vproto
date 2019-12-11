@@ -22,6 +22,7 @@ option test = 0x100;
 
 enum testEnum {
   y = 0x100;
+  y = 0x100;
   z = 66 [descriptor = "wow nice", test = 123.e4410];
   yy = 13;
 
@@ -32,6 +33,7 @@ message testMessage {
   required int32 foo = 1;
   optional int32 bar = 2;
   repeated int32 baz = 3;
+  repeated int32 baz = 15;
 
   optional foo.bar nested_message = 5;
   repeated int32 samples = 4 [packed = true];
@@ -47,7 +49,12 @@ message testMessage {
 
   extensions 10, 20 to max;
   reserved 1, 10 to 20;
-  extensions 1 to max;
+}
+
+extend testMessage {
+  optional int32 test3 = 24;
+  optional int32 bar = 25;
+  optional int32 baz = 1;
 }
 
 service DirLookup {

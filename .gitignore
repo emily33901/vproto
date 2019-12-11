@@ -4,3 +4,5 @@ build/
 *.pdb
 fns.txt
 .vs
+*.exp
+*.lib
