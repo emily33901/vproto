@@ -2,13 +2,17 @@ module main
 
 import flag
 import os
+import filepath
 
-import vproto
+import vproto.compiler
 
 struct Args {
 mut:
 	filename string
 	additional []string
+
+	out_folder string
+
 	imports []string
 	quiet bool
 }
@@ -24,6 +28,7 @@ fn parse_args() Args {
 	fp.skip_executable()
 
 	args.filename = fp.string('filename', '', 'Filename of proto to parse')
+	args.out_folder = fp.string('out_dir', '', 'Output folder of V file')
 	im := fp.string('import', '', 'Add a directory to imports')
 	args.imports << im
 
@@ -44,10 +49,26 @@ fn main() {
 		return
 	}
 
-	mut p := vproto.Parser{file_inputs: [args.filename], imports: args.imports, quiet: args.quiet}
+	if !os.is_dir(args.out_folder) {
+		println('Output path does not exist')
+		return
+	}
+
+	mut p := compiler.Parser{file_inputs: [args.filename], imports: args.imports, quiet: args.quiet}
 
 	p.parse()
 	p.validate()
 
-	println('${json.encode(p)}')
+	g := compiler.new_gen(&p)
+
+	for _, f in p.files[..1] {
+		filename := os.realpath(f.filename).all_after(os.path_separator).all_before_last('.') + '.pb.v'
+
+		path := filepath.join(os.realpath(args.out_folder), filename)
+
+		println('$path')
+
+		os.write_file(path, g.gen_file_text(f))
+		// println('$f.filename:\n=====\n${g.gen_file_text(f)}')
+	}
 }

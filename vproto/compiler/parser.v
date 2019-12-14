@@ -1,4 +1,4 @@
-module vproto
+module compiler
 
 import os
 import json
@@ -16,11 +16,15 @@ mut:
 	line int [skip]
 	line_char int [skip] // The char that the new line was on
 
-	files []File
 
 	type_table TypeTable
 
 	type_context []string
+
+	// TODO dont make public
+pub:
+	files []File
+
 }
 
 const (
@@ -434,19 +438,6 @@ fn (p mut Parser) consume_bool_lit() ?string {
 	return none
 }
 
-enum LitType {
-	ident = 0
-	integral
-	float
-	str
-	boolean
-}
-
-struct Literal {
-	t LitType [json:'type']
-	value string
-}
-
 fn (p mut Parser) consume_lit() ?Literal {
 	// constant = fullIdent | ( [ "-" | "+" ] intLit ) | ( [ "-" | "+" ] floatLit ) |
     //             strLit | boolLit 
@@ -823,21 +814,10 @@ fn (p mut Parser) consume_enum() ?Enum {
 	return e
 }
 
-
-const (
-	validTypes = ["double", "float",
-					"int32", "int64",
-					"uint32", "uint64",
-					"sint32", "sint64",
-					"fixed32", "fixed64",
-					"sfixed32", "sfixed64",
-					"bool", "string", "bytes"]
-)
-
 fn (p mut Parser) consume_field_type(limit_types bool) ?string {
 	ident := p.next_full_ident()
 
-	if ident in validTypes {
+	if ident in valid_types {
 		p.consume_ident() or {
 			panic('') // should never happen
 		}
@@ -1377,7 +1357,6 @@ pub fn (p mut Parser) parse() {
 			p.consume_whitespace()
 
 			if p.consume_import() { consumed_something = true }
-
 			if p.consume_package() { consumed_something = true }
 			
 			if o := p.consume_option() {
@@ -1386,7 +1365,6 @@ pub fn (p mut Parser) parse() {
 			}
 
 			if p.consume_top_level_def() { consumed_something = true }
-
 			if p.consume_empty_statement() { consumed_something = true }
 
 			if !consumed_something {
@@ -1546,7 +1524,7 @@ fn (p &Parser) check_message_field_types(type_context []string, message &Message
 	message_type_context << type_context.clone()
 	
 	for _, field in message.fields {
-		if field.t in validTypes { continue }
+		if field.t in valid_types { continue }
 		
 		if x := p.type_table.lookup_type(message_type_context, field.t) {
 			continue
@@ -1647,8 +1625,89 @@ fn (p &Parser) check_file_extends() {
 	}
 }
 
-fn (p &Parser) find_valid_options() {
 
+struct Options {
+	message_options []OptionField
+	enum_options []OptionField
+	file_options []OptionField
+
+	message_field_options []FieldOption
+	enum_field_option []FieldOption
+
+	// TODO service and method options
+}
+
+const (
+	file_options_message = 'FileOptions'
+
+	message_options_message = 'MessageOptions'
+
+	field_options_message = 'FieldOptions'
+
+	enum_options_message = 'EnumOptions'
+	enum_value_options_message = 'EnumValueOptions'
+)
+
+fn (p &Parser) find_valid_options() Options {
+	// Look for the messages for all the options
+
+	// First we need to get the default set of options
+	// file_options := p.type_table.lookup_message(file_options_message)
+	// message_message := p.type_table.lookup_message(message_options_message)
+	// field_message := p.type_table.lookup_message(field_options_message)
+	// enums_message := p.type_table.lookup_message(enum_options_message)
+	// enum_value_message := p.type_table.lookup_message(enum_value_options_message)
+
+	// First file level options
+	// for _, file in p.files {
+	// 	for _, o in file.options {
+
+	// 	}
+	// }
+
+	return Options{}
+}
+
+fn (p &Parser) check_file_options(file &File, valid_options []OptionField) {
+}
+
+fn (p &Parser) check_field_options(field &Field, valid_options []FieldOption) {
+}
+
+fn (p &Parser) check_message_field_options(message &Message, valid_options []FieldOption) {
+}
+
+fn (p &Parser) check_message_options(message &Message, valid_options []OptionField) {
+}
+
+fn (p &Parser) check_enum_field_options(e &Enum, valid_options []FieldOption) {
+}
+
+fn (p &Parser) check_enum_options(e &Enum, valid_options []OptionField) {
+}
+
+fn (p &Parser) check_options() {
+	valid_options := p.find_valid_options()
+
+	for _, file in p.files {
+		for _, message in file.messages { 
+			p.check_message_options(message, valid_options.message_options)
+			p.check_message_field_options(message, valid_options.message_field_options) 
+		}
+
+		for _, extend in file.extends {
+			for _, field in extend.fields {
+				p.check_field_options(field, valid_options.message_field_options)
+			}
+		}
+
+		for _, e in file.enums { 
+			p.check_enum_options(e, valid_options.enum_options)
+			p.check_enum_field_options(e, valid_options.enum_field_option) 
+		}
+
+		p.check_file_options(file, valid_options.file_options)
+	}
 }
 
 pub fn (p &Parser) validate() {
@@ -1666,8 +1725,6 @@ pub fn (p &Parser) validate() {
 	// - check all field types
 	p.check_field_types()
 
-	// - check field numbers are in the correct range
-	// - check that types exist where they should
-
 	// - check that options are valid
+	p.check_options()
 }

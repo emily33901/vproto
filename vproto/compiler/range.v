@@ -1,4 +1,4 @@
-module vproto
+module compiler
 
 // Helpers for dealing with ranges
 

@@ -1,8 +1,19 @@
-module vproto
+module compiler
 
 // Protobuf definitions
 
+enum LitType {
+	ident = 0
+	integral
+	float
+	str
+	boolean
+}
 
+struct Literal {
+	t LitType [json:'type']
+	value string
+}
 
 pub struct SrcLoc {
 	// TODO fill out and use in other definitions
@@ -14,7 +25,6 @@ pub struct SrcLoc {
 pub fn (s SrcLoc) str() string {
 	return '$s.file:$s.line:$s.char'
 }
-
 
 pub struct Import {
 	weak bool
@@ -48,10 +58,30 @@ pub struct Enum {
 	fields []EnumField
 }
 
+const (
+	valid_types = ['double', 'float',
+					'int32', 'int64',
+					'uint32', 'uint64',
+					'sint32', 'sint64',
+					'fixed32', 'fixed64',
+					'sfixed32', 'sfixed64',
+					'bool', 'string', 'bytes']
+
+	valid_types_v = ['f64', 'f32', 
+					'int', 'i64',
+					'u32', 'u64',
+					'int', 'i64',
+					'u32', 'u64',
+					'int', 'i64',
+					'bool', 'string', 'vproto.Bytes']
+
+	keywords_v = ['type']
+)
+
 pub struct Field {
 	label string
 	name string
-	t string
+	t string [json:'type']
 	number string // int literal
 
 	options []FieldOption

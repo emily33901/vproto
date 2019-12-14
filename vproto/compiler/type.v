@@ -1,4 +1,4 @@
-module vproto
+module compiler
 
 pub struct Type {
 	name string

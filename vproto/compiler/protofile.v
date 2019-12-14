@@ -1,4 +1,4 @@
-module vproto
+module compiler
 
 pub enum ProtoSyntax {
 	proto2
@@ -7,8 +7,7 @@ pub enum ProtoSyntax {
 
 pub struct File {
 mut:
-	filename string 
-	path string
+
 
 	syntax ProtoSyntax // syntax of the file
 
@@ -19,4 +18,9 @@ mut:
 	messages []Message
 	extends []Extend
 	services []Service
+
+	// TODO dont make pub
+pub:
+	filename string 
+	path string
 }
