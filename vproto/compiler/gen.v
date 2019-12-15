@@ -25,7 +25,7 @@ fn to_v_struct_name(name string) string {
 	return new_name
 }
 
-fn to_v_interface_name(context []string, name string) string {
+fn to_v_message_name(context []string, name string) string {
 	mut struct_name := ''
 	
 	for _, part in context {
@@ -38,16 +38,7 @@ fn to_v_interface_name(context []string, name string) string {
 
 	struct_name = struct_name.replace_each(['.', ''])
 
-	return struct_name + 'er'
-}
-
-fn to_v_internal_struct_name(context []string, name string) string {
-	mut struct_name := 'Internal'
-	for _, part in context {
-		struct_name += to_v_struct_name(part)
-	}
-	
-	return struct_name + to_v_struct_name(name)
+	return struct_name
 }
 
 fn escape_name(name string) string {
@@ -76,7 +67,7 @@ import vproto
 '
 }
 
-fn  (g &Gen) gen_enum_definition(type_context []string, e &Enum) string {
+fn (g &Gen) gen_enum_definition(type_context []string, e &Enum) string {
 	e_name := to_v_struct_name(type_context.join('') + e.name)
 	mut text := '\nenum ${e_name} {\n'
 
@@ -92,106 +83,91 @@ fn  (g &Gen) gen_enum_definition(type_context []string, e &Enum) string {
 	return text
 }
 
-fn (g &Gen) type_to_type(t string, use_interface bool) (string, bool) {
-	if t in valid_types {
-		return valid_types_v[valid_types.index(t)], false
-	}
+enum type_type {
+	message enum_ other
+}
 
-	name_transform := if use_interface {
-		to_v_interface_name
-	} else {
-		to_v_internal_struct_name
+fn (g &Gen) type_to_type(t string) (string, type_type) {
+	if t in valid_types {
+		return valid_types_v[valid_types.index(t)], .other
 	}
 
 	if _ := g.type_table.lookup_message([], t) {
 		if t[0] == `.` {
-			return name_transform([], t[1..]), true
+			return to_v_message_name([], t[1..]), .message
 		}
 
-		return name_transform([], t), true
+		return to_v_message_name([], t), .message
 	}
 
 	if t[0] == `.` {
-		return to_v_struct_name(t[1..]), false
+		return to_v_struct_name(t[1..]), .enum_
 	}
 
-	return to_v_struct_name(t), false
+	return to_v_struct_name(t), .enum_
 }
 
-fn (g &Gen) field_type_to_type(f &Field, use_interface bool) (string, bool) {
-	return g.type_to_type(f.t, use_interface)
+fn (g &Gen) field_type_to_type(f &Field) (string, type_type) {
+	return g.type_to_type(f.t)
 }
 
-fn (g &Gen) gen_message_definition(type_context []string, m &Message) string {
-	mut text := ''
+fn (g &Gen) gen_message_runtime_info(type_context []string, m &Message) string {
+	mut text := '\nconst (\n'
 
-	m_name := to_v_interface_name(type_context, m.name)
+	m_name := to_v_message_name(type_context, m.name)
+	m_full_name := (type_context.join('') + m.name).to_lower()
 
-	// Generate for submessages and subenums
-	for _, e in m.enums {
-		mut context := type_context
-		context << m.name
-		text += g.gen_enum_definition(context, e)
+	mut fields_block := ''
+	mut name_to_number_map := ''
+	mut v_name_to_number_map := ''
+
+	if m.fields.len > 0 {
+		fields_block = '\t${m_full_name}_fields = [\n'
+		name_to_number_map = '\t${m_full_name}_name_to_number = {\n'
+		v_name_to_number_map = '\t${m_full_name}_v_name_to_number = {\n'
+	} else {
+		fields_block = '\t${m_full_name}_fields = []vproto.RuntimeField\n'
+		name_to_number_map = '\t${m_full_name}_name_to_number = map[string]i64\n'
+		v_name_to_number_map = '\t${m_full_name}_v_name_to_number = map[string]i64\n'
 	}
 
-	for _, sub in m.messages {
-		mut context := type_context
-		context << m.name
-		text += g.gen_message_definition(context, sub)
-	}
-
-
-	text += '\ninterface ${m_name} { \n'
+	// TODO should probably also be a map but we cant rn
+	// mut number_to_field_func := '\t${m_full_name}_v_name_to_number = {\n'
 
 	for _, field in m.fields {
-		field_type, _ := g.field_type_to_type(&field, true)
+		field_type, field_type_type := g.field_type_to_type(&field)
 		name := escape_name(field.name)
 
-		// TODO cleanup this whackyness when string interpolation
-		// is less buggy
-		
-		if field.label == 'optional' || field.label == 'required' {
-			text += '\t${name}() ?$field_type\n'
-			text += '\tmutable_${name}() ?&$field_type\n'
-			text += '\tset_${name}('
-			text += 'value ${field_type}'
-			text += ')\n'
-			text += '\tclear_' + name + '()\n' 
+		enum_field_type := if field_type == 'string' || field_type == 'bool' {
+			field_type + '_'
+		} else if field_type_type == .message {
+			'message'
+		} else if field_type_type == .enum_ {
+			'enum_'
 		} else {
-			rfield_type := '[]$field_type'
-			
-			text += '\t${name}(index int) ?$field_type\n'
-			text += '\t${name}_arr() ?$rfield_type\n'
-			text += '\t${name}_size() int\n'
-			text += '\tadd_${name}(value ${field_type}) &${field_type}\n'
-			text += '\tset_${name}(index int, value ${field_type})\n'
-			text += '\tclear_' + name + '()\n'
+			field.t
 		}
 
-		text += '\n'
+		fields_block += '\t\tvproto.RuntimeField{\'$field.t\', \'$field_type\', vproto.FieldType.$enum_field_type, \'$field.name\', \'$name\', $field.number},\n'
+
+		name_to_number_map += '\t\t\'$field.name\': i64($field.number)\n'
+		v_name_to_number_map += '\t\t\'$name\': i64($field.number)\n'
 	}
 
-	for _, field in m.map_fields {
-		name := field.name
-		k := field.key_type
-		v := field.value_type
-		// field_type := 'map[${g.type_to_type(field.key_type)}]${g.type_to_type(field.value_type)}'
-	
-		text += '\t${name}(key $k) ?$v\n'
-		text += '\tset_${name}(key $k, value $v)\n'
-		text += '\tclear_${name}(key $k)\n'
 
-		// TODO additional functions
+	if m.fields.len > 0 {
+		fields_block += '\t]\n'
+		name_to_number_map += '\t}\n'
+		v_name_to_number_map += '\t}\n'
 	}
 
-	// TODO handle oneof blocks and extensions!
+	text += name_to_number_map
+	text += v_name_to_number_map
+	text += fields_block
+
+	text += '\n)\n'
 
 
-	text += '\tserialize_to_array() ?[]byte\n'
-	text += '\tparse_from_array(data []byte) bool\n'
-
-
-	text += '}\n'
 
 	return text
 }
@@ -199,9 +175,8 @@ fn (g &Gen) gen_message_definition(type_context []string, m &Message) string {
 fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 	mut text := ''
 
-	m_name := to_v_internal_struct_name(type_context, m.name)
-	m_full_name := type_context.join('') + m.name
-	m_interface_name := to_v_interface_name(type_context, m.name)
+	m_name := to_v_message_name(type_context, m.name)
+	m_full_name := (type_context.join('') + m.name).to_lower()
 
 	// Generate for submessages
 	for _, sub in m.messages {
@@ -210,6 +185,8 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 		text += g.gen_message_internal(context, sub)
 	}
 
+	text += g.gen_message_runtime_info(type_context, m)
+
 	text += '\nstruct $m_name {\n'
 
 	if m.fields.len > 0 {
@@ -217,7 +194,7 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 	}
 
 	for _, field in m.fields {
-		field_type, _ := g.field_type_to_type(&field, false)
+		field_type, _ := g.field_type_to_type(&field)
 		name := escape_name(field.name)
 
 		if field.label == 'optional' || field.label == 'required' {
@@ -244,7 +221,7 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 
 	// Function for creating a new of that message
 
-	text += 'pub fn new_${m_full_name.to_lower()}() $m_interface_name {\n'
+	text += 'pub fn new_${m_full_name}() $m_name {\n'
 	text += '\treturn $m_name{}'
 	text += '\n}\n\n'
 
@@ -253,7 +230,7 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 	// and the internal structs
 
 	for _, field in m.fields {
-		field_type, is_field_message := g.field_type_to_type(&field, true)
+		field_type, field_type := g.field_type_to_type(&field)
 
 		name := escape_name(field.name)
 
@@ -272,11 +249,9 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 			text += '\treturn none\n'
 			text += '}\n\n'
 			
-			if is_field_message {
-				real_field_type, _ := g.field_type_to_type(&field, false)
-
+			if field_type == .message {
 				text += 'fn (o mut $m_name) set_${name}(value ${field_type}) {\n'
-				text += '\to.${name} = ${real_field_type}(value)\n'
+				text += '\to.${name} = value\n'
 				text += '\to.has_${name} = true \n'
 				text += '}\n\n'
 			} else {
@@ -303,24 +278,22 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 			text += '\treturn o.${name}.len\n'
 			text += '}\n\n'
 
-			if !is_field_message {
+			if field_type != .message {
 				text += 'fn (o mut $m_name) add_${name}(value ${field_type}) {\n'
 				text += '\to.${name} << value\n'
 				text += '}\n\n'
 
 				text += 'fn (o mut $m_name) set_${name}(index int, value ${field_type}) {\n'
-				text += '\to.${name}[index] = ${}value\n'
+				text += '\to.${name}[index] = value\n'
 				text += '}\n\n'
 			} else {
-				real_field_type, _ := g.field_type_to_type(&field, false)
-
 				text += 'fn (o mut $m_name) add_${name}() &${field_type} {\n'
-				text += '\to.${name} << ${real_field_type}{}\n'
+				text += '\to.${name} << ${field_type}{}\n'
 				text += '\treturn &o.${name}[o.${name}.len-1]\n'
 				text += '}\n\n'
 
 				text += 'fn (o mut $m_name) set_${name}(index int, value ${field_type}) {\n'
-				text += '\to.${name}[index] = ${real_field_type}(value)\n'
+				text += '\to.${name}[index] = value\n'
 				text += '}\n\n'
 			}
 
@@ -342,6 +315,29 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 	text += '\treturn false\n'
 	text += '}\n'
 
+	text += 'fn (o $m_name) field_name_to_number(name string) ?i64 {\n'
+	text += '\tif name in ${m_full_name}_name_to_number {\n'
+	text += '\t\treturn ${m_full_name}_name_to_number[name]\n'
+	text += '\t}\n'
+	text += '\treturn none\n'
+	text += '}\n'
+
+	text += 'fn (o $m_name) field_v_name_to_number(name string) ?i64 {\n'
+	text += '\tif name in ${m_full_name}_v_name_to_number {\n'
+	text += '\t\treturn ${m_full_name}_v_name_to_number[name]\n'
+	text += '\t}\n'
+	text += '\treturn none\n'
+	text += '}\n'
+
+	text += 'fn (o $m_name) field_from_number(num i64) ?vproto.RuntimeField {\n'
+	text += '\tfor i, x in ${m_full_name}_fields {\n'
+	text += '\t\tif x.number == num {\n'
+	text += '\t\t\treturn ${m_full_name}_fields[i]\n'
+	text += '\t\t}\n'
+	text += '\t}\n'
+	text += '\treturn none\n'
+	text += '}\n'
+
 	return text
 }
 
@@ -351,15 +347,6 @@ pub fn (g &Gen) gen_file_text(f &File) string {
 	for _, e in f.enums {
 		generated_text += g.gen_enum_definition([], &e)
 	}
-
-	for _, m in f.messages {
-		generated_text += g.gen_message_definition([], &m)
-	}
-
-
-	generated_text += '////////////////////////////////////////'
-	generated_text += '// Internal Definitions'
-	generated_text += '///////////////////////////////////////'
 
 	// Then generate the actual structs that back the messages
 	for _, m in f.messages {

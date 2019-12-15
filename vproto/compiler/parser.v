@@ -22,7 +22,7 @@ mut:
 	type_context []string
 
 	// TODO dont make public
-pub:
+pub mut:
 	files []File
 
 }
