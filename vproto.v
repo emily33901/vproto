@@ -10,9 +10,7 @@ struct Args {
 mut:
 	filename string
 	additional []string
-
 	out_folder string
-
 	imports []string
 	quiet bool
 }
@@ -59,7 +57,7 @@ fn main() {
 	p.parse()
 	p.validate()
 
-	g := compiler.new_gen(&p)
+	mut g := compiler.new_gen(&p)
 
 	for _, f in p.files[..1] {
 		filename := os.realpath(f.filename).all_after(os.path_separator).all_before_last('.') + '.pb.v'

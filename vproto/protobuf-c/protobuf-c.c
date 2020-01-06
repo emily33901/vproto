@@ -48,7 +48,7 @@
 #include <stdlib.h>	/* for malloc, free */
 #include <string.h>	/* for strcmp, strlen, memcpy, memmove, memset */
 
-#include "protobuf-v.h"
+#include "protobuf-c.h"
 
 #define TRUE				1
 #define FALSE				0
@@ -743,7 +743,7 @@ size_t protobuf_c_message_get_packed_size(const ProtobufCMessage *message)
 		} else {
 			rv += repeated_field_get_packed_size(
 				field,
-				*(const size_t *) qmember,
+				*(const uint32_t *) qmember,
 				member
 			);
 		}
@@ -1353,7 +1353,7 @@ get_type_min_size(ProtobufCType type)
  */
 static size_t
 repeated_field_pack(const ProtobufCFieldDescriptor *field,
-		    size_t count, const void *member, uint8_t *out)
+		    uint32_t count, const void *member, uint8_t *out)
 {
 	void *array = *(void * const *) member;
 	unsigned i;

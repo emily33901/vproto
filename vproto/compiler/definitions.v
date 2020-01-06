@@ -49,13 +49,15 @@ pub struct EnumField {
 	name string
 	value Literal // int literal
 
-	options []FieldOption
+	options []&FieldOption
 }
 
 pub struct Enum {
 	name string
-	options []OptionField
-	fields []EnumField
+	options []&OptionField
+	fields []&EnumField
+
+	typ &Type
 }
 
 const (
@@ -73,24 +75,28 @@ const (
 					'int', 'i64',
 					'u32', 'u64',
 					'int', 'i64',
-					'bool', 'string', 'vproto.Bytes']
+					'bool', 'string', '[]byte']
 
-	keywords_v = ['type']
+	keywords_v = ['type', 'error']
 )
 
 pub struct Field {
 	label string
 	name string
 	t string [json:'type']
+
+	// this is stored so we dont have to
+	// recreate it in gen
+	type_context []string
 	number string // int literal
 
-	options []FieldOption
+	options []&FieldOption
 }
 
 pub struct Extend {
 	t string [json:'type']
 
-	fields []Field
+	fields []&Field
 }
 
 pub struct Extension {
@@ -100,7 +106,7 @@ pub struct Extension {
 pub struct Oneof {
 	name string
 
-	fields []Field
+	fields []&Field
 }
 
 pub struct MapField {
@@ -120,15 +126,17 @@ pub struct Reserved {
 pub struct Message {
 	name string
 
-	fields []Field
-	enums []Enum
-	messages []Message [skip]
-	extends []Extend
-	extensions []Extension
-	options []OptionField
-	oneofs []Oneof
-	map_fields []MapField
-	reserveds []Reserved
+	fields []&Field
+	enums []&Enum
+	messages []&Message [skip]
+	extends []&Extend
+	extensions []&Extension
+	options []&OptionField
+	oneofs []&Oneof
+	map_fields []&MapField
+	reserveds []&Reserved
+
+	typ &Type
 }
 
 pub struct ServiceMethod {
@@ -142,7 +150,7 @@ pub struct ServiceMethod {
 pub struct Service {
 	name string
 
-	method []ServiceMethod
+	method []&ServiceMethod
 
-	options []OptionField
+	options []&OptionField
 }

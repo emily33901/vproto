@@ -1,58 +1,25 @@
 module compiler
 
-fn to_v_field_name(name string) string {
-	return name.to_lower()
+fn empty_double_string() (string, string) {
+	return '', ''
 }
 
-fn to_v_struct_name(name string) string {
-	mut new_name := name[0].str().to_upper() + name[1..]
-	new_name = new_name.replace_each(['_', '', '.', ''])
+// TODO this file needs a massive refactor and clean
+// So much code just everywhere with functions that dont
+// make any sense
+// Please just fix it before its too late...
 
-	// Get around the capital letters limitations
-	mut was_cap := 0
-	for i, c in new_name {
-		if c >= `A` && c <= `Z` {
-			if was_cap > 1 {
-				new_name = new_name[..i] + c.str().to_lower() + new_name[i+1..]
-			} else {
-				was_cap++
-			}
-		} else {
-			was_cap = 0
-		}
-	}
+// Other things that would be nice
 
-	return new_name
-}
-
-fn to_v_message_name(context []string, name string) string {
-	mut struct_name := ''
-	
-	for _, part in context {
-		struct_name += to_v_struct_name(part)
-	}
-
-	struct_name += to_v_struct_name(name)
-
-	// TODO when this limitation is removed also do so here!
-
-	struct_name = struct_name.replace_each(['.', ''])
-
-	return struct_name
-}
-
-fn escape_name(name string) string {
-	if name in keywords_v {
-		return name + '_'
-	}
-
-	new_name := name.replace_each(['__', '_'])
-
-	return new_name
-}
+// Functions for getting names / types consistently
+// instead of manually creating m_name and m_full_name
+// in each of the places that they are used!
 
 struct Gen {
 	type_table &TypeTable
+
+mut: 
+	current_package string
 }
 
 fn (g &Gen) gen_file_header(f &File) string {
@@ -64,160 +31,285 @@ fn (g &Gen) gen_file_header(f &File) string {
 module vproto_gen
 
 import vproto
+
+pub const (
+	// v_package = \'$g.current_package\'
+)
 '
 }
 
 fn (g &Gen) gen_enum_definition(type_context []string, e &Enum) string {
-	e_name := to_v_struct_name(type_context.join('') + e.name)
+	names := message_names(type_context, e.name)
+	
+	e_name := names.struct_name
+	e_full_name := names.lowercase_name
+
 	mut text := '\nenum ${e_name} {\n'
 
 	for _, field in e.fields {
 		text += '\t${to_v_field_name(field.name)} = $field.value.value\n'
 	}
 
+	text += '}\n\n'
+
+	// generate packing and unpacking functions
+
+	text += 'fn pack_${e_full_name}(e $e_name, num u32) []byte {\n'
+	text += '\treturn vproto.pack_int32_field(int(e), num)\n'
 	text += '}\n'
 	
+	text += 'fn unpack_${e_full_name}(buf []byte, tag_wiretype vproto.WireType) (int, $e_name) {\n'
+	text += '\ti, v := vproto.unpack_int32_field(buf, tag_wiretype)\n'
+	text += '\treturn i, ${e_name}(v)\n'
+	text += '}\n'
+
 	// TODO helper functions here 
 	// https://developers.google.com/protocol-buffers/docs/reference/cpp-generated#enum
 
 	return text
 }
 
-enum type_type {
-	message enum_ other
+// TODO When type_to_type changes name change this name too ! 
+fn (g &Gen) type_to_type(context []string, t string) (string, type_type) {
+	mut full_context := [g.current_package]
+	full_context << context
+
+	return type_to_type(g.current_package, g.type_table, full_context, t)
 }
 
-fn (g &Gen) type_to_type(t string) (string, type_type) {
-	if t in valid_types {
-		return valid_types_v[valid_types.index(t)], .other
-	}
+fn (g &Gen) type_pack_name(pack_or_unpack string, field_proto_type string, field_v_type string field_type_type type_type) string {
+	match field_type_type {
+		.other {
+			match field_proto_type {
+				'fixed32' {
+					return 'vproto.${pack_or_unpack}_32bit_field'
+				}
 
-	if _ := g.type_table.lookup_message([], t) {
-		if t[0] == `.` {
-			return to_v_message_name([], t[1..]), .message
+				'sfixed32' {
+					return 'vproto.${pack_or_unpack}_s32bit_field'
+				}
+
+				'float' {
+					return 'vproto.${pack_or_unpack}_float_field'
+				}
+
+				'fixed64' {
+					return 'vproto.${pack_or_unpack}_64bit_field'
+				}
+
+				'sfixed64' {
+					return 'vproto.${pack_or_unpack}_s64bit_field'
+				}
+
+				'double' {
+					return 'vproto.${pack_or_unpack}_double_field'
+				}
+
+				'int32' {
+					return 'vproto.${pack_or_unpack}_int32_field'
+				}
+
+				'sint32' {
+					return 'vproto.${pack_or_unpack}_sint32_field'
+				}
+
+				'sint64' {
+					return 'vproto.${pack_or_unpack}_sint64_field'
+				}
+
+				'uint32' {
+					return 'vproto.${pack_or_unpack}_uint32_field'
+				}
+
+				'int64' {
+					return 'vproto.${pack_or_unpack}_int64_field'
+				}
+
+				'uint64' {
+					return 'vproto.${pack_or_unpack}_uint64_field'
+				}
+
+				'bool' {
+					return 'vproto.${pack_or_unpack}_bool_field'
+				}
+
+				'string' {
+					return 'vproto.${pack_or_unpack}_string_field'
+				}
+
+				'bytes' {
+					return 'vproto.${pack_or_unpack}_bytes_field'
+				}
+
+				else {
+					panic('unknown type `$field_proto_type`')
+				}
+			}
 		}
 
-		return to_v_message_name([], t), .message
-	}
-
-	if t[0] == `.` {
-		return to_v_struct_name(t[1..]), .enum_
-	}
-
-	return to_v_struct_name(t), .enum_
-}
-
-fn (g &Gen) field_type_to_type(f &Field) (string, type_type) {
-	return g.type_to_type(f.t)
-}
-
-fn (g &Gen) gen_message_runtime_info(type_context []string, m &Message) string {
-	mut text := '\nconst (\n'
-
-	m_name := to_v_message_name(type_context, m.name)
-	m_full_name := (type_context.join('') + m.name).to_lower()
-
-	mut fields_block := ''
-	mut name_to_number_map := ''
-	mut v_name_to_number_map := ''
-
-	if m.fields.len > 0 {
-		fields_block = '\t${m_full_name}_fields = [\n'
-		name_to_number_map = '\t${m_full_name}_name_to_number = {\n'
-		v_name_to_number_map = '\t${m_full_name}_v_name_to_number = {\n'
-	} else {
-		fields_block = '\t${m_full_name}_fields = []vproto.RuntimeField\n'
-		name_to_number_map = '\t${m_full_name}_name_to_number = map[string]i64\n'
-		v_name_to_number_map = '\t${m_full_name}_v_name_to_number = map[string]i64\n'
-	}
-
-	// TODO should probably also be a map but we cant rn
-	// mut number_to_field_func := '\t${m_full_name}_v_name_to_number = {\n'
-
-	for _, field in m.fields {
-		field_type, field_type_type := g.field_type_to_type(&field)
-		name := escape_name(field.name)
-
-		enum_field_type := if field_type == 'string' || field_type == 'bool' {
-			field_type + '_'
-		} else if field_type_type == .message {
-			'message'
-		} else if field_type_type == .enum_ {
-			'enum_'
-		} else {
-			field.t
+		.enum_, .message {
+			return '${pack_or_unpack}_$field_v_type'
 		}
 
-		fields_block += '\t\tvproto.RuntimeField{\'$field.t\', \'$field_type\', vproto.FieldType.$enum_field_type, \'$field.name\', \'$name\', $field.number},\n'
+		.message {
+			return '${pack_or_unpack}_$field_v_type'
+		}
 
-		name_to_number_map += '\t\t\'$field.name\': i64($field.number)\n'
-		v_name_to_number_map += '\t\t\'$name\': i64($field.number)\n'
+		else {
+			panic('unkown field_type_type `$field_type_type`')
+		}
+	}
+}
+
+fn (g &Gen) gen_field_pack_text(label string, field_proto_type string, field_v_type string, field_type_type type_type, name, number string) (string, string) {
+	mut pack_text := ''
+	mut unpack_text := ''
+
+	match label {
+		'optional', 'required' {
+			pack_inside := g.type_pack_name('pack', field_proto_type, field_v_type, field_type_type)
+			unpack_inside := g.type_pack_name('unpack', field_proto_type, field_v_type, field_type_type)
+
+			unpack_text += '\t\t\t$number {\n'
+
+			if label == 'optional' {
+				pack_text += '\tif o.has_$name {\n\t'
+
+				unpack_text += '\t\t\t\tres.has_$name = true\n'
+			}
+
+			pack_text += '\tres << ${pack_inside}(o.$name, $number)\n'
+
+			if label == 'optional' {
+				pack_text += '\t}\n'
+			}
+
+			// unpack text at this point is inside of a match statement checking tag numbers
+
+			// TODO make this into a oneliner again once match bug is fixed
+
+			unpack_text += '\t\t\t\tii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)\n'
+			unpack_text += '\t\t\t\tres.$name = v\n'
+			unpack_text += '\t\t\t\ti = ii\n'
+			unpack_text += '\t\t\t}\n'
+		}
+
+		'repeated' {
+			pack_text += '\t// TODO repeated field `$name`\n'
+			unpack_text += '\t\t\t$number { /* TODO repeated field `$name` */ }\n'
+		}
+
+		else {
+			println('Unknown label $label')
+		}
 	}
 
+	return pack_text, unpack_text
 
-	if m.fields.len > 0 {
-		fields_block += '\t]\n'
-		name_to_number_map += '\t}\n'
-		v_name_to_number_map += '\t}\n'
-	}
-
-	text += name_to_number_map
-	text += v_name_to_number_map
-	text += fields_block
-
-	text += '\n)\n'
-
-
-
-	return text
 }
 
 fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 	mut text := ''
 
+	m_names := type_to_names(m.typ)
+
+	// TODO replace with message_namess
 	m_name := to_v_message_name(type_context, m.name)
 	m_full_name := (type_context.join('') + m.name).to_lower()
 
+	mut this_type_context := type_context.clone()
+	this_type_context << m.name
+
 	// Generate for submessages
 	for _, sub in m.messages {
-		mut context := type_context
-		context << m.name
-		text += g.gen_message_internal(context, sub)
+		text += g.gen_message_internal(this_type_context, sub)
+	}
+	
+	// Generate for subenums
+	for _, sub in m.enums {
+		text += g.gen_enum_definition(this_type_context, sub)
 	}
 
-	text += g.gen_message_runtime_info(type_context, m)
+	pack_unpack_mut := if m.fields.len > 0 {
+		'mut '
+	} else {
+		''
+	}
 
-	text += '\nstruct $m_name {\n'
+	mut field_pack_text := '\npub fn (o &$m_name) pack() []byte {\n'
+	field_pack_text += '\t${pack_unpack_mut}res := []byte // TODO allocate correct size statically\n\n'
+	
+	mut field_unpack_text := '\npub fn ${m_full_name}_unpack(buf []byte) ?$m_name {\n'
+	field_unpack_text += '\t${pack_unpack_mut}res := $m_name{}\n'
+
+	if m.fields.len > 0 {
+		field_unpack_text += '\tmut total := 0\n'
+		field_unpack_text += '\tfor total < buf.len {\n'
+		field_unpack_text += '\t\tmut i := 0\n'
+		field_unpack_text += '\t\tbuf_before_wiretype := buf[total..]\n'
+		field_unpack_text += '\t\ttag_wiretype := vproto.unpack_tag_wire_type(buf) or { return error(\'malformed protobuf\') }\n'
+		field_unpack_text += '\t\tcur_buf := buf_before_wiretype[tag_wiretype.consumed..]\n'
+		field_unpack_text += '\t\tmatch tag_wiretype.tag {\n'
+	}
+
+	text += '\npub struct $m_name {\n'
 
 	if m.fields.len > 0 {
 		text += 'mut:\n\n'
 	}
 
 	for _, field in m.fields {
-		field_type, _ := g.field_type_to_type(&field)
+		field_type, field_type_type := g.type_to_type(field.type_context, field.t)
 		name := escape_name(field.name)
 
-		if field.label == 'optional' || field.label == 'required' {
+		if field.label == 'optional' {
 			text += '\t${name} ${field_type}\n'
-			text += '\thas_${name} bool\n\n'
-		} else {
+			text += '\thas_${name} bool\n'
+
+		} else if field.label == 'required' {
+			text += '\t${name} ${field_type}\n'
+		} else if field.label == 'repeated' {
 			text += '\t${name} []${field_type}\n'
 		}
+
+		// Seperate fields nicer
+		text += '\n'
+
+		mut pack_text := ''
+		mut unpack_text := ''
+
+		if field_type_type == .enum_ || field_type_type == .message {
+			names := message_names([], field.t)
+			n := (field.type_context.join('') + names.lowercase_name).to_lower()
+			pack_text, unpack_text = g.gen_field_pack_text(field.label, field.t, names.lowercase_name, field_type_type, name, field.number)
+		} else {
+			pack_text, unpack_text = g.gen_field_pack_text(field.label, field.t, field_type, field_type_type, name, field.number)
+		}
+
+		field_pack_text += pack_text
+		field_unpack_text += unpack_text
 	}
 
-	for _, field in m.map_fields {
-		name := field.name
-		k := field.key_type
-		v := field.value_type
-		// field_type := 'map[${g.type_to_type(field.key_type)}]${g.type_to_type(field.value_type)}'
+	// TODO oneofs maps extensions and similar
 
-		text += '\t${name} vproto.Map_${k}_${v}\n\n'
+	text += '}\n\n'
 
+	field_pack_text += '\treturn res\n'
+	field_pack_text += '}\n\n'
 
-		// TODO additional functions
+	if m.fields.len > 0 {
+		// close match then for then func
+		field_unpack_text += '\t\t\telse { println(\'Found unknown field tag `\$tag_wiretype.tag`\') }\n'
+		field_unpack_text += '\t\t}\n'
+
+		// TODO we need to actually implement parsing of unknown fields otherwise this will
+		// always trigger if we hit one
+		field_unpack_text += '\t\tif i == 0 { return error(\'malformed protobuf\') }\n'
+		field_unpack_text += '\t\ttotal += i\n'
+		field_unpack_text += '\t}\n'
 	}
-
-	text += '}\n'
+	field_unpack_text += '\treturn res\n'
+	field_unpack_text += '}\n\n'
 
 	// Function for creating a new of that message
 
@@ -225,137 +317,41 @@ fn (g &Gen) gen_message_internal(type_context []string, m &Message) string {
 	text += '\treturn $m_name{}'
 	text += '\n}\n\n'
 
-	// TODO all of this needs to be significantly cleaned up and refactored
-	// Move all of the field generating code into the same place for both interfaces
-	// and the internal structs
+	text += field_pack_text
+	text += field_unpack_text
 
-	for _, field in m.fields {
-		field_type, field_type := g.field_type_to_type(&field)
+	// pack and unpack wrappers for when its called as a submessage
+	text += 'fn pack_${m_full_name}(o $m_name, num u32) []byte {\n'
+	text += '\treturn vproto.pack_message_field(o.pack(), num)\n'
+	text += '}\n'
+	
+	text += 'fn unpack_${m_full_name}(buf []byte, tag_wiretype vproto.WireType) (int, $m_name) {\n'
+	text += '\ti, v := vproto.unpack_message_field(buf, tag_wiretype)\n'
+	text += '\treturn i, ${m_full_name}_unpack(v) or { panic (\'\') }\n'
+	text += '}\n'
 
-		name := escape_name(field.name)
-
-		if field.label == 'optional' || field.label == 'required' {
-			text += 'fn (o &$m_name) ${name}() ?$field_type {\n'
-			text += '\tif o.has_${name} {\n'
-			text += '\t\treturn o.$name\n'
-			text += '\t}\n'
-			text += '\treturn none\n'
-			text += '}\n\n'
-
-			text += 'fn (o &$m_name) mutable_${name}() ?&$field_type {\n'
-			text += '\tif o.has_${name} {\n'
-			text += '\t\treturn &o.$name\n'
-			text += '\t}\n'
-			text += '\treturn none\n'
-			text += '}\n\n'
-			
-			if field_type == .message {
-				text += 'fn (o mut $m_name) set_${name}(value ${field_type}) {\n'
-				text += '\to.${name} = value\n'
-				text += '\to.has_${name} = true \n'
-				text += '}\n\n'
-			} else {
-				text += 'fn (o mut $m_name) set_${name}(value ${field_type}) {\n'
-				text += '\to.${name} = value\n'
-				text += '\to.has_${name} = true \n'
-				text += '}\n\n'
-			}
-
-
-			text += 'fn (o mut $m_name) clear_' + name + '() {\n\to.has_${name} = false\n}\n\n' 
-		} else {
-			rfield_type := '[]$field_type'
-			
-			text += 'fn (o &$m_name) ${name}(index int) $field_type {\n'
-			text += '\treturn o.${name}[index]\n'
-			text += '}\n\n'
-
-			text += 'fn (o &$m_name) ${name}_arr() $rfield_type {\n'
-			text += '\treturn o.${name}\n'
-			text += '}\n\n'
-
-			text += 'fn (o &$m_name) ${name}_size() int {\n'
-			text += '\treturn o.${name}.len\n'
-			text += '}\n\n'
-
-			if field_type != .message {
-				text += 'fn (o mut $m_name) add_${name}(value ${field_type}) {\n'
-				text += '\to.${name} << value\n'
-				text += '}\n\n'
-
-				text += 'fn (o mut $m_name) set_${name}(index int, value ${field_type}) {\n'
-				text += '\to.${name}[index] = value\n'
-				text += '}\n\n'
-			} else {
-				text += 'fn (o mut $m_name) add_${name}() &${field_type} {\n'
-				text += '\to.${name} << ${field_type}{}\n'
-				text += '\treturn &o.${name}[o.${name}.len-1]\n'
-				text += '}\n\n'
-
-				text += 'fn (o mut $m_name) set_${name}(index int, value ${field_type}) {\n'
-				text += '\to.${name}[index] = value\n'
-				text += '}\n\n'
-			}
-
-			text += 'fn (o mut $m_name) clear_' + name + '() {\n'
-			text += '\to.${name} = []\n'
-			text += '}\n\n'
-		}
-		text += '\n'
-	}
 
 	// TODO oneof, maps and similar
-
-
-	text += 'fn (o $m_name) serialize_to_array() ?[]byte {\n'
-	text += '\treturn none\n'
-	text += '}\n'
-
-	text += 'fn (o $m_name) parse_from_array(data []byte) bool {\n'
-	text += '\treturn false\n'
-	text += '}\n'
-
-	text += 'fn (o $m_name) field_name_to_number(name string) ?i64 {\n'
-	text += '\tif name in ${m_full_name}_name_to_number {\n'
-	text += '\t\treturn ${m_full_name}_name_to_number[name]\n'
-	text += '\t}\n'
-	text += '\treturn none\n'
-	text += '}\n'
-
-	text += 'fn (o $m_name) field_v_name_to_number(name string) ?i64 {\n'
-	text += '\tif name in ${m_full_name}_v_name_to_number {\n'
-	text += '\t\treturn ${m_full_name}_v_name_to_number[name]\n'
-	text += '\t}\n'
-	text += '\treturn none\n'
-	text += '}\n'
-
-	text += 'fn (o $m_name) field_from_number(num i64) ?vproto.RuntimeField {\n'
-	text += '\tfor i, x in ${m_full_name}_fields {\n'
-	text += '\t\tif x.number == num {\n'
-	text += '\t\t\treturn ${m_full_name}_fields[i]\n'
-	text += '\t\t}\n'
-	text += '\t}\n'
-	text += '\treturn none\n'
-	text += '}\n'
 
 	return text
 }
 
-pub fn (g &Gen) gen_file_text(f &File) string {
-	mut generated_text := g.gen_file_header(&f)
+pub fn (g mut Gen) gen_file_text(f &File) string {
+	g.current_package = f.package
+	mut generated_text := g.gen_file_header(f)
 
 	for _, e in f.enums {
-		generated_text += g.gen_enum_definition([], &e)
+		generated_text += g.gen_enum_definition([], e)
 	}
 
 	// Then generate the actual structs that back the messages
 	for _, m in f.messages {
-		generated_text += g.gen_message_internal([], &m)
+		generated_text += g.gen_message_internal([], m)
 	}
 
 	return generated_text
 }
 
 pub fn new_gen(p &Parser) Gen {
-	return Gen{&p.type_table}
+	return Gen{type_table: p.type_table}
 }

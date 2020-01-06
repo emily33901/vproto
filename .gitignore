@@ -6,3 +6,4 @@ fns.txt
 .vs
 *.exp
 *.lib
+*.bin

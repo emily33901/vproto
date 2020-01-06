@@ -17,13 +17,13 @@ mut:
 	line_char int [skip] // The char that the new line was on
 
 
-	type_table TypeTable
+	type_table &TypeTable
 
 	type_context []string
 
 	// TODO dont make public
 pub mut:
-	files []File
+	files []&File
 
 }
 
@@ -550,7 +550,7 @@ fn (p mut Parser) consume_import() bool {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in import statement') }
 
-	p.current_file().imports << Import{weak, public, package}
+	p.current_file().imports << &Import{weak, public, package}
 
 	return true
 }
@@ -586,7 +586,7 @@ fn (p mut Parser) consume_package() bool  {
 	return true
 }
 
-fn (p mut Parser) consume_option() ?OptionField {
+fn (p mut Parser) consume_option() ?&OptionField {
 	p.consume_whitespace()
 
 	// option = "option" optionName  "=" constant ";"
@@ -619,7 +619,7 @@ fn (p mut Parser) consume_option() ?OptionField {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in option statement') }
 
-	return OptionField{ident, lit}
+	return &OptionField{ident, lit}
 }
 
 fn (p mut Parser) consume_option_ident() ?string {
@@ -661,12 +661,12 @@ fn (p mut Parser) consume_option_ident() ?string {
 	return ident
 }
 
-fn (p mut Parser) consume_field_options() []FieldOption {
+fn (p mut Parser) consume_field_options() []&FieldOption {
 	if p.next_char() != `[` { return [] }
 
 	p.consume_char()
 
-	mut options := []FieldOption
+	mut options := []&FieldOption
 
 	for {
 		p.consume_whitespace()
@@ -698,7 +698,7 @@ fn (p mut Parser) consume_field_options() []FieldOption {
 
 		if p.next_char() == `,` { p.consume_char() }
 
-		options << FieldOption{ident, lit}
+		options << &FieldOption{ident, lit}
 	}
 
 	p.consume_char()
@@ -708,7 +708,7 @@ fn (p mut Parser) consume_field_options() []FieldOption {
 
 
 
-fn (p mut Parser) consume_enum_field() ?EnumField {
+fn (p mut Parser) consume_enum_field() ?&EnumField {
 	// enumField = ident "=" intLit [ "[" enumValueOption { ","  enumValueOption } "]" ]";"
 	// enumValueOption = optionName "=" constant
 
@@ -743,15 +743,15 @@ fn (p mut Parser) consume_enum_field() ?EnumField {
 	c := p.consume_char()
 	if c != `;` { p.report_error('Expected `;` after enum field (got ${c.str()})') }
 
-	return EnumField{ident, lit, options}
+	return &EnumField{ident, lit, options}
 }
 
 
-fn (p mut Parser) consume_enum_body(name string) Enum {
+fn (p mut Parser) consume_enum_body(name string, typ &Type) &Enum {
 	// enumBody = "{" { option | enumField | emptyStatement } "}"
 
-	mut options := []OptionField
-	mut fields := []EnumField
+	mut options := []&OptionField
+	mut fields := []&EnumField
 
 	for {
 		mut consumed_something := false
@@ -780,10 +780,10 @@ fn (p mut Parser) consume_enum_body(name string) Enum {
 		}
 	}
 
-	return Enum{name, options, fields}
+	return &Enum{name, options, fields, typ}
 }
 
-fn (p mut Parser) consume_enum() ?Enum {
+fn (p mut Parser) consume_enum() ?&Enum {
 	// enum = "enum" enumName enumBody
 
 	if p.next_full_ident() != 'enum' {
@@ -802,9 +802,8 @@ fn (p mut Parser) consume_enum() ?Enum {
 
 	if p.consume_char() != `{` { p.report_error('expected `{` after enum name') }
 
-	e := p.consume_enum_body(name)
-
-	typ := new_type(p.type_scope(), name, false, true, p.current_file())
+	typ := new_type(p.type_scope(), name, true, false, p.current_file())
+	e := p.consume_enum_body(name, typ)
 	p.type_table.add_enum(typ, e)
 
 	p.consume_whitespace()
@@ -841,7 +840,7 @@ fn (p mut Parser) consume_field_type(limit_types bool) ?string {
 	return none
 }
 
-fn (p mut Parser) consume_field(is_oneof_field bool) ?Field {
+fn (p mut Parser) consume_field(is_oneof_field bool) ?&Field {
 	// field = label type fieldName "=" fieldNumber [ "[" fieldOptions "]" ] ";"
 	// fieldOptions = fieldOption { ","  fieldOption }
 	// fieldOption = optionName "=" constant
@@ -901,11 +900,16 @@ fn (p mut Parser) consume_field(is_oneof_field bool) ?Field {
 	c := p.consume_char()
 	if c != `;` { p.report_error('Expected `;` after field (got ${c.str()})') }
 
-	return Field{label, ident, t, lit, options}
+	return &Field{label, 
+		ident, 
+		t, 
+		p.type_scope(), 
+		lit, 
+		options}
 }
 
 
-fn (p mut Parser) consume_extend() ?Extend {
+fn (p mut Parser) consume_extend() ?&Extend {
 	if p.next_full_ident() != 'extend' {
 		return none
 	}
@@ -923,11 +927,11 @@ fn (p mut Parser) consume_extend() ?Extend {
 
 	if p.consume_char() != `{` { p.report_error('Expected `{` after extend identifer') }
 
-	mut fields := []Field
+	mut fields := []&Field
 
 	for {
 		p.consume_whitespace()
-
+		// TODO what should type_context be here?
 		if f := p.consume_field(false) {
 			fields << f
 		}
@@ -943,7 +947,7 @@ fn (p mut Parser) consume_extend() ?Extend {
 
 	if p.consume_char() != `}` { p.report_error('Expected `}` after extend identifer') }
 
-	return Extend{t, fields}
+	return &Extend{t, fields}
 
 }
 
@@ -994,7 +998,7 @@ fn (p mut Parser) consume_ranges() ?[]string {
 
 
 
-fn (p mut Parser) consume_extension() ?Extension {
+fn (p mut Parser) consume_extension() ?&Extension {
 	if p.next_full_ident() != 'extensions' {
 		return none
 	}
@@ -1006,12 +1010,12 @@ fn (p mut Parser) consume_extension() ?Extension {
 		panic('') // appease compiler
 	}
 
-	return Extension{ranges}
+	return &Extension{ranges}
 }
 
 
 
-fn (p mut Parser) consume_oneof() ?Oneof {
+fn (p mut Parser) consume_oneof() ?&Oneof {
 	if p.next_full_ident() != 'oneof' {
 		return none
 	}
@@ -1028,7 +1032,7 @@ fn (p mut Parser) consume_oneof() ?Oneof {
 	p.consume_whitespace()
 	if p.consume_char() != `{` { p.report_error('expected `{` after identifier') }
 
-	mut fields := []Field
+	mut fields := []&Field
 
 	for {
 		p.consume_whitespace()
@@ -1046,12 +1050,12 @@ fn (p mut Parser) consume_oneof() ?Oneof {
 
 	if c != `}` { p.report_error('expected `}` after oneof body (got `${c.str()}`)') }
 
-	return Oneof{ident, fields}
+	return &Oneof{ident, fields}
 }
 
 
 
-fn (p mut Parser) consume_map_field() ?MapField {
+fn (p mut Parser) consume_map_field() ?&MapField {
 	if p.next_full_ident() != 'map' {
 		return none
 	}
@@ -1098,10 +1102,10 @@ fn (p mut Parser) consume_map_field() ?MapField {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in map field') }
 
-	return MapField{ident, key_type, value_type, number}
+	return &MapField{ident, key_type, value_type, number}
 }
 
-fn (p mut Parser) consume_reserved() ?Reserved {
+fn (p mut Parser) consume_reserved() ?&Reserved {
 	// reserved = "reserved" ( ranges | fieldNames ) ";"
 	// fieldNames = fieldName { "," fieldName }
 
@@ -1135,30 +1139,30 @@ fn (p mut Parser) consume_reserved() ?Reserved {
 
 		p.consume_char()
 
-		return Reserved{false, reserved}
+		return &Reserved{false, reserved}
 	} else {
 		ranges := p.consume_ranges() or {
 			p.report_error('Expected ranges in reserved field')
 			panic('') // appease compiler
 		}
 
-		return Reserved{true, ranges}
+		return &Reserved{true, ranges}
 	}
 }
 
-fn (p mut Parser) consume_message_body(name string) Message {
+fn (p mut Parser) consume_message_body(name string, typ &Type) &Message {
 	// messageBody = "{" { field | enum | message | extend | extensions | group |
 	// option | oneof | mapField | reserved | emptyStatement } "}"
 
-	mut fields := []Field
-	mut enums := []Enum
-	mut messages := []Message
-	mut extends := []Extend
-	mut extensions := []Extension
-	mut options := []OptionField
-	mut oneofs := []Oneof
-	mut map_fields := []MapField
-	mut reserveds := []Reserved
+	mut fields := []&Field
+	mut enums := []&Enum
+	mut messages := []&Message
+	mut extends := []&Extend
+	mut extensions := []&Extension
+	mut options := []&OptionField
+	mut oneofs := []&Oneof
+	mut map_fields := []&MapField
+	mut reserveds := []&Reserved
 
 	for {
 		mut consumed_something := false
@@ -1214,11 +1218,11 @@ fn (p mut Parser) consume_message_body(name string) Message {
 		}
 	}
 
-	return Message{name, fields, enums, messages, extends, extensions, options, oneofs, map_fields, reserveds}
+	return &Message{name, fields, enums, messages, extends, extensions, options, oneofs, map_fields, reserveds, typ}
 
 }
 
-fn (p mut Parser) consume_message() ?Message {
+fn (p mut Parser) consume_message() ?&Message {
 	// message = "message" messageName messageBody
 
 	if p.next_full_ident() != 'message' {
@@ -1238,11 +1242,12 @@ fn (p mut Parser) consume_message() ?Message {
 	
 	if p.consume_char() != `{` { p.report_error('expected `{` after message name') }
 
+	typ := new_type(p.type_scope(), name, false, true, p.current_file())
+
 	p.enter_new_type_scope(name)
-	message := p.consume_message_body(name)
+	message := p.consume_message_body(name, typ)
 	p.exit_type_scope()
 
-	typ := new_type(p.type_scope(), name, false, true, p.current_file())
 	p.type_table.add_message(typ, message)
 
 	p.consume_whitespace()
@@ -1252,7 +1257,7 @@ fn (p mut Parser) consume_message() ?Message {
 	return message
 }
 
-fn (p mut Parser) consume_service() ?Service {
+fn (p mut Parser) consume_service() ?&Service {
 	if p.next_full_ident() != 'service' {
 		return none
 	}
@@ -1281,7 +1286,7 @@ fn (p mut Parser) consume_service() ?Service {
 
 	p.consume_char()
 
-	return Service{name: name}
+	return &Service{name: name}
 }
 
 fn (p mut Parser) consume_top_level_def() bool {
@@ -1324,7 +1329,7 @@ fn (p mut Parser) consume_empty_statement() bool {
 }
 
 pub fn (p mut Parser) parse() {
-	p.type_table = TypeTable{}
+	p.type_table = &TypeTable{}
 
 	for i := 0; ; i++ {
 		if i >= p.file_inputs.len { break }
@@ -1340,7 +1345,7 @@ pub fn (p mut Parser) parse() {
 		p.line = 0
 		p.line_char = 0
 		p.char = 0
-		p.files << File{filename: filename, path: filename}
+		p.files << &File{filename: filename, path: filename}
 		p.type_context = []
 
 		// proto = syntax { import | package | option | topLevelDef | emptyStatement }
@@ -1520,8 +1525,8 @@ fn (p &Parser) check_message_field_numbers(type_context []string, message &Messa
 }
 
 fn (p &Parser) check_message_field_types(type_context []string, message &Message) {
-	mut message_type_context := [message.name]
-	message_type_context << type_context.clone()
+	mut message_type_context := type_context.clone()
+	message_type_context << message.name
 	
 	for _, field in message.fields {
 		if field.t in valid_types { continue }

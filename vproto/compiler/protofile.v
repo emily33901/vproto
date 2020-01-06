@@ -12,12 +12,12 @@ mut:
 	syntax ProtoSyntax // syntax of the file
 
 	package string
-	imports []Import
-	options []OptionField
-	enums []Enum
-	messages []Message
-	extends []Extend
-	services []Service
+	imports []&Import
+	options []&OptionField
+	enums []&Enum
+	messages []&Message
+	extends []&Extend
+	services []&Service
 
 	// TODO dont make pub
 pub:
