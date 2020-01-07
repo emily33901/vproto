@@ -7,3 +7,4 @@ fns.txt
 *.exp
 *.lib
 *.bin
+a.out

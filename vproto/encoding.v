@@ -332,7 +332,7 @@ fn sint64_pack(value i64) []byte
 fn fixed32_pack(value u32) []byte
 {
 	v := [byte(0), 0, 0, 0]
-	C.memcpy(&(v[0]), &value, 4)
+	C.memcpy(&v[0], &value, 4)
 
 	return v
 
@@ -358,7 +358,7 @@ fn fixed32_pack(value u32) []byte
 fn fixed64_pack(value u64) []byte
 {
 	v := [byte(0), 0, 0, 0, 0, 0, 0, 0]
-	C.memcpy(&(v[0]), &value, 8)
+	C.memcpy(&v[0], &value, 8)
 
 	return v
 
@@ -493,13 +493,13 @@ fn unzigzag32(v u32) int {
 
 fn fixed32_unpack(buf []byte) u32 {
 	v := u32(0)
-	C.memcpy(&v, buf, 4)
+	C.memcpy(&v, &buf[0], 4)
 	return v
 }
 
 fn fixed64_unpack(buf []byte) u64 {
 	v := u64(0)
-	C.memcpy(&v, buf, 8)
+	C.memcpy(&v, &buf[0], 8)
 	return v
 }
 
@@ -530,11 +530,11 @@ fn string_unpack(buf []byte) (int, string) {
 		return i, ''
 	}
 
-	return i+len, string(buf[..len])
+	return i+len, string(buf[i..len])
 }
 
 fn bytes_unpack(buf []byte) (int, []byte) {
 	i, len := uint32_unpack(buf)
-	return i+len, buf[..len].clone()
+	return i+len, buf[i..len].clone()
 }
 

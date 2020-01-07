@@ -186,7 +186,7 @@ pub fn unpack_tag_wire_type(b []byte) ?TagWireType {
 		} else {
 			tag |= (b[i]) << shift
 
-			return TagWireType{i, tag, wire_type}
+			return TagWireType{i+1, tag, wire_type}
 		}
 	}
 
