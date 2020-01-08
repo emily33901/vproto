@@ -14,6 +14,8 @@ module compiler
 struct Gen {
 	type_table &TypeTable
 
+	w Writer
+
 mut: 
 	current_package string
 }
@@ -40,6 +42,7 @@ fn (g &Gen) gen_enum_definition(type_context []string, e &Enum) string {
 	e_name := names.struct_name
 	e_full_name := names.lowercase_name
 
+	g.w.l('enum ${e_name} {')
 	mut text := '\nenum ${e_name} {\n'
 
 	for _, field in e.fields {
@@ -350,5 +353,5 @@ pub fn (g mut Gen) gen_file_text(f &File) string {
 }
 
 pub fn new_gen(p &Parser) Gen {
-	return Gen{type_table: p.type_table}
+	return Gen{type_table: p.type_table, w: new_writer()}
 }
