@@ -12,4 +12,10 @@ message Simple {
     repeated int32 other = 3;
 
     required Test enum_test = 4;
+
+    required bytes okay = 5;
+}
+
+message Nested {
+    required Simple test = 1;
 }

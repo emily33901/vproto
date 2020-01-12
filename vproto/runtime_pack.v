@@ -8,6 +8,7 @@ pub enum WireType {
 	_32bit = 3
 }
 
+
 fn pack_wire_type(w WireType) byte {
 	return byte(w)
 }
@@ -125,6 +126,8 @@ pub fn pack_message_field(value []byte, num u32) []byte {
 	ret << bytes_pack(value)
 	return ret
 }
+
+// unpacking routines
 
 pub fn unpack_wire_type(b byte) WireType {
 	return WireType(b & 0x7)
@@ -250,22 +253,38 @@ pub fn unpack_message_field(buf []byte, wire_type WireType) (int,[]byte) {
 	return unpack_bytes_field(buf, wire_type)
 }
 
-// test case for broken match
-// fn test(x, y int) (int, int) {
-// return x, y
-// }
-// struct Test {
-// x int
-// y int
-// }
-// fn main() {
-// mut i := 3
-// mut z := 4
-// x := 3
-// mut s := Test{}
-// match x {
-// 4 { i, z = test(5, 5) }
-// 3 { i, s.y = test(5, 5) }
-// }
-// println('$i, $z')
-// }
+// When unpacking this is used when we find a field where we dont
+// recognise the number
+pub struct UnknownField {
+pub:
+	wire WireType
+	number u32
+	data []byte
+}
+
+pub fn unpack_unknown_field(buf []byte, wire_type WireType) (int, []byte) {
+	match wire_type {
+		.length_prefixed {
+			return bytes_unpack(buf)
+		}
+
+		.varint {
+			_, v := uint64_unpack(buf)
+			b := uint64_pack(v)
+			return b.len, b
+		}
+
+		._32bit {
+			return 4, buf[..4]
+		}
+
+		._64bit {
+			return 8, buf[..8]
+		}
+
+		else {
+			// Should never happen
+			panic('')
+		}
+	} 
+}

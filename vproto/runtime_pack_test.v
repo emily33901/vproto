@@ -36,7 +36,7 @@ fn test_sint32_fields() {
 }
 
 fn test_uint64_fields() {
-	int_field_packed := pack_uint64_field(100000, 100)
+	int_field_packed := pack_uint64_field(11111111, 100)
 	
 	for _, x in int_field_packed {
 		print('$x.hex() ')
@@ -51,8 +51,8 @@ fn test_uint64_fields() {
 	assert t.wire_type == .varint
 	i,v := unpack_uint64_field(int_field_packed[t.consumed..], .varint)
 	println('$i $v')
-	assert v == 100000
-	assert i == 3
+	assert v == 11111111
+	assert i == 4
 }
 
 // fn test_int64_fields() {

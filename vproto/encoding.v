@@ -526,8 +526,9 @@ fn fixed64_unpack(buf []byte) u64 {
 
 fn uint64_unpack(buf []byte) (int,u64) {
 	mut res := u64(buf[0] & 0x7f)
+
 	mut i := 1
-	for i = 1; (buf[i] & 0x80) == 0x80; i++ {
+	for i = 1; (buf[i-1] & 0x80) == 0x80; i++ {
 		res |= u64(buf[i] & 0x7f)<<(i * 7)
 	}
 	return i,res
@@ -542,10 +543,11 @@ fn unzigzag64(v u64) i64 {
 
 fn string_unpack(buf []byte) (int,string) {
 	i,len := uint32_unpack(buf)
+	println('$len')
 	if len == 0 {
 		return i,''
 	}
-	return i + len,string(buf[i..len])
+	return i + len, tos(&buf[i], int(len))
 }
 
 fn bytes_unpack(buf []byte) (int,[]byte) {

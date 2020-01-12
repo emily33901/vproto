@@ -125,7 +125,7 @@ struct MessageNames {
 
 fn message_names(type_context []string, name string) MessageNames {
 	mut this_type_context := type_context.clone()
-	this_type_context << namen
+	this_type_context << name
 
 	return MessageNames {
 		struct_name: to_v_message_name(type_context, name),

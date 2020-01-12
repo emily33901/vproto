@@ -5,6 +5,8 @@ module compiler
 import strings
 
 struct Writer {
+
+mut:
 	builder strings.Builder
 
 	indent int
@@ -20,9 +22,12 @@ fn new_writer() Writer {
 // check_line checks the line for {, } and adapts the indent as neccessary
 // it also returns the current indentation string
 fn (w mut Writer) check_line(l string) string {
+	mut old_indent := w.indent
+
 	if l == '}' {
 		// Kinda special case
 		w.indent--
+		old_indent--
 	} else {
 		opens := l.count('{')
 		closes := l.count('}')
@@ -36,7 +41,13 @@ fn (w mut Writer) check_line(l string) string {
 		w.indent = 0
 	}
 
-	return w.indent * '\t'
+	mut ret := ''
+
+	for i := 0; i < old_indent; i++ {
+		ret += '\t'
+	}
+
+	return ret
 }
 
 // l writes a line to the output
@@ -47,5 +58,5 @@ pub fn (w mut Writer) l(l string) {
 
 // text gets the current text of the writer
 pub fn (w mut Writer) text() string {
-	return builder.str()
+	return w.builder.str()
 }
