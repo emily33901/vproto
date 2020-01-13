@@ -38,19 +38,14 @@ fn test_sint32_fields() {
 fn test_uint64_fields() {
 	int_field_packed := pack_uint64_field(11111111, 100)
 	
-	for _, x in int_field_packed {
-		print('$x.hex() ')
-	}
-
-	println('')
-	
 	t := unpack_tag_wire_type(int_field_packed) or {
 		panic('$err')
 	}
+
 	assert t.tag == 100
 	assert t.wire_type == .varint
+	
 	i,v := unpack_uint64_field(int_field_packed[t.consumed..], .varint)
-	println('$i $v')
 	assert v == 11111111
 	assert i == 4
 }
