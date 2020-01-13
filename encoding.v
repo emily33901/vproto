@@ -1,7 +1,7 @@
 module vproto
 // Helper functions for serialization
 // Most of these are adapted from the protobuf-c project
-// Original comments have been left intact
+// Some original comments have been left intact
 const (
 	protobuf_number_max = (2 ^ 29) - 1
 )
