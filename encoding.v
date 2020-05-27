@@ -17,16 +17,16 @@ const (
 
 
 fn get_tag_size(number int) u32 {
-	if (number < (1<<4)) {
+	if number < (1<<4) {
 		return 1
 	}
-	else if (number < (1<<11)) {
+	else if number < (1<<11) {
 		return 2
 	}
-	else if (number < (1<<18)) {
+	else if number < (1<<18) {
 		return 3
 	}
-	else if (number < (1<<25)) {
+	else if number < (1<<25) {
 		return 4
 	}
 	else {
@@ -46,16 +46,16 @@ fn get_tag_size(number int) u32 {
 
 
 fn uint32_size(v u32) u32 {
-	if (v < (1<<7)) {
+	if v < (1<<7) {
 		return 1
 	}
-	else if (v < (1<<14)) {
+	else if v < (1<<14) {
 		return 2
 	}
-	else if (v < (1<<21)) {
+	else if v < (1<<21) {
 		return 3
 	}
-	else if (v < (1<<28)) {
+	else if v < (1<<28) {
 		return 4
 	}
 	else {
@@ -75,19 +75,19 @@ fn uint32_size(v u32) u32 {
 
 
 fn int32_size(v int) u32 {
-	if (v < 0) {
+	if v < 0 {
 		return 10
 	}
-	else if (v < (1<<7)) {
+	else if v < (1<<7) {
 		return 1
 	}
-	else if (v < (1<<14)) {
+	else if v < (1<<14) {
 		return 2
 	}
-	else if (v < (1<<21)) {
+	else if v < (1<<21) {
 		return 3
 	}
-	else if (v < (1<<28)) {
+	else if v < (1<<28) {
 		return 4
 	}
 	else {
@@ -107,7 +107,7 @@ fn int32_size(v int) u32 {
 
 
 fn zigzag32(v int) u32 {
-	if (v < 0) {
+	if v < 0 {
 		return (-u32(v)) * 2 - 1
 	}
 	else {
@@ -144,22 +144,22 @@ fn sint32_size(v int) u32 {
 
 fn uint64_size(v u64) u32 {
 	upper_v := u32(v>>32)
-	if (upper_v == 0) {
+	if upper_v == 0 {
 		return uint32_size(u32(v))
 	}
-	else if (upper_v < (1<<3)) {
+	else if upper_v < (1<<3) {
 		return 5
 	}
-	else if (upper_v < (1<<10)) {
+	else if upper_v < (1<<10) {
 		return 6
 	}
-	else if (upper_v < (1<<17)) {
+	else if upper_v < (1<<17) {
 		return 7
 	}
-	else if (upper_v < (1<<24)) {
+	else if upper_v < (1<<24) {
 		return 8
 	}
-	else if (upper_v < (1<<31)) {
+	else if upper_v < (1<<31) {
 		return 9
 	}
 	else {
@@ -179,7 +179,7 @@ fn uint64_size(v u64) u32 {
 
 
 fn zigzag64(v i64) u64 {
-	if (v < 0) {
+	if v < 0 {
 		return (-u64(v)) * 2 - 1
 	}
 	else {
@@ -217,8 +217,8 @@ fn sint64_size(v i64) u32 {
 
 
 fn int32_pack(value int) []byte {
-	if (value < 0) {
-		return [value | 0x80,
+	if value < 0 {
+		return [byte(value) | 0x80,
 		(value>>7) | 0x80,
 		(value>>14) | 0x80,
 		(value>>21) | 0x80,
@@ -248,7 +248,7 @@ fn int32_pack(value int) []byte {
 
 
 fn uint32_pack(v u32) []byte {
-	mut res := []byte
+	mut res := []byte{}
 	mut value := v
 	if value >= 0x80 {
 		res << value | 0x80
@@ -303,7 +303,7 @@ fn sint32_pack(value int) []byte {
 fn uint64_pack(value u64) []byte {
 	mut hi := u32(value>>32)
 	lo := *(&u32(&value))
-	mut res := []byte
+	mut res := []byte{}
 	if hi == 0 {
 		return uint32_pack(lo)
 	}
@@ -405,10 +405,10 @@ fn fixed64_pack(value u64) []byte {
 
 fn boolean_pack(value bool) []byte {
 	if value {
-		return [1]
+		return [byte(1)]
 	}
 	else {
-		return [0]
+		return [byte(0)]
 	}
 }
 
@@ -430,8 +430,8 @@ fn boolean_pack(value bool) []byte {
 
 
 fn string_pack(str string) []byte {
-	mut out := []byte
-	if (str == '') {
+	mut out := []byte{}
+	if str == '' {
 		out << 0
 		return out
 	}
@@ -461,7 +461,7 @@ fn string_pack(str string) []byte {
 
 
 fn tag_pack(id u32) []byte {
-	if (id < (1<<(32 - 3))) {
+	if id < (1<<(32 - 3)) {
 		return uint32_pack(id<<3)
 	}
 	else {
@@ -478,13 +478,13 @@ fn bytes_pack(buf []byte) []byte {
 fn uint32_unpack(buf []byte) (int,u32) {
 	mut i := 0
 	mut ret := u32(buf[0] & 0x7f)
-	if (buf[0] & 0x80) == 0x80 {
+	if buf[0] & 0x80 == 0x80 {
 		ret |= u32(buf[1] & 0x7f)<<7
-		if (buf[1] & 0x80) == 0x80 {
+		if buf[1] & 0x80 == 0x80 {
 			ret |= u32(buf[2] & 0x7f)<<14
-			if (buf[2] & 0x80) == 0x80 {
+			if buf[2] & 0x80 == 0x80 {
 				ret |= u32(buf[3] & 0x7f)<<21
-				if (buf[3] & 0x80) == 0x80 {
+				if buf[3] & 0x80 == 0x80 {
 					ret |= u32(buf[4] & 0x7f)<<28
 					i++
 				}
@@ -542,15 +542,15 @@ fn unzigzag64(v u64) i64 {
 }
 
 fn string_unpack(buf []byte) (int,string) {
-	i,len := uint32_unpack(buf)
-	println('$len')
-	if len == 0 {
-		return i,''
+	size_len, str_len := uint32_unpack(buf)
+	println('$size_len')
+	if size_len == 0 {
+		return 0, ''
 	}
-	return i + len, tos(&buf[i], int(len))
+	return int(str_len) + size_len, tos(&buf[size_len], int(str_len))
 }
 
 fn bytes_unpack(buf []byte) (int,[]byte) {
-	i,len := uint32_unpack(buf)
-	return i + len,buf[i..len + 1].clone()
+	size_len, bytes_len := uint32_unpack(buf)
+	return int(bytes_len) + size_len, buf[size_len..bytes_len + 1].clone()
 }
