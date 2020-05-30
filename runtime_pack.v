@@ -5,7 +5,7 @@ pub enum WireType {
 	_64bit = 1
 	length_prefixed = 2
 	// we dont support groups
-	_32bit = 3
+	_32bit = 5
 }
 
 
