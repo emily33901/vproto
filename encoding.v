@@ -570,7 +570,8 @@ fn string_unpack(buf []byte) (int,string) {
 	if str_len == 0 {
 		return size_len, ''
 	}
-	return int(str_len) + size_len, tos(&buf[size_len], int(str_len))
+	// Clone here to make sure the string is 0 terminated
+	return int(str_len) + size_len, tos(&buf[size_len], int(str_len)).clone()
 }
 
 fn bytes_unpack(buf []byte) (int,[]byte) {
