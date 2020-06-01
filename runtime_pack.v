@@ -34,6 +34,13 @@ pub fn pack_int32_field(value int, num u32) []byte {
 	return ret
 }
 
+pub fn pack_int32_field_packed(values []int, num u32) []byte {
+	mut ret := []byte{}
+	ret << pack_tag_wire_type(num, .varint)
+	ret << int32_packed_pack(values)
+	return ret
+}
+
 pub fn pack_enum_field<T>(value T, num u32) []byte {
 	return pack_int32_field(int(value), num)
 }
@@ -205,6 +212,11 @@ pub fn unpack_sint32_field(buf []byte, wire_type WireType) (int,int) {
 pub fn unpack_int32_field(buf []byte, wire_type WireType) (int,int) {
 	assert wire_type == .varint
 	return int32_unpack(buf)
+}
+
+pub fn unpack_int32_field_packed(buf []byte, wire_type WireType) (int, []int) {
+	assert wire_type == .length_prefixed
+	return int32_unpack_packed(buf)
 }
 
 pub fn unpack_uint32_field(buf []byte, wire_type WireType) (int,u32) {

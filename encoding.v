@@ -234,6 +234,16 @@ fn int32_pack(value int) []byte {
 	}
 }
 
+fn int32_packed_pack(values []int) []byte {
+	mut packed := []byte{}
+
+	for v in values {
+		packed << int32_pack(v)
+	}
+
+	return bytes_pack(packed)
+}
+
 /**
  * Pack an unsigned 32-bit integer in base-128 varint encoding and return the
  * number of bytes written, which must be 5 or less.
@@ -503,6 +513,20 @@ fn int32_unpack(buf []byte) (int,int) {
 	return i,int(v)
 }
 
+fn int32_unpack_packed(buf []byte) (int, []int) {
+	i, bytes := bytes_unpack(buf)
+
+	mut ret := []int{}
+
+	for j := 0; j < bytes.len; {
+		consumed, value := int32_unpack(bytes[j..])
+		j += consumed
+		ret << value
+	}
+
+	return i, ret
+}
+
 fn unzigzag32(v u32) int {
 	if v & 1 == 1 {
 		return int(-(v>>1) - 1)
@@ -543,14 +567,13 @@ fn unzigzag64(v u64) i64 {
 
 fn string_unpack(buf []byte) (int,string) {
 	size_len, str_len := uint32_unpack(buf)
-	println('$size_len')
-	if size_len == 0 {
-		return 0, ''
+	if str_len == 0 {
+		return size_len, ''
 	}
 	return int(str_len) + size_len, tos(&buf[size_len], int(str_len))
 }
 
 fn bytes_unpack(buf []byte) (int,[]byte) {
 	size_len, bytes_len := uint32_unpack(buf)
-	return int(bytes_len) + size_len, buf[size_len..bytes_len + 1].clone()
+	return int(bytes_len) + size_len, buf[size_len..(int(bytes_len)+size_len)].clone()
 }
