@@ -219,10 +219,10 @@ fn sint64_size(v i64) u32 {
 fn int32_pack(value int) []byte {
 	if value < 0 {
 		return [byte(value) | 0x80,
-		(value>>7) | 0x80,
-		(value>>14) | 0x80,
-		(value>>21) | 0x80,
-		(value>>28) | 0x80,
+		byte(value>>7) | 0x80,
+		byte(value>>14) | 0x80,
+		byte(value>>21) | 0x80,
+		byte(value>>28) | 0x80,
 		0xff,
 		0xff,
 		0xff,
@@ -261,22 +261,22 @@ fn uint32_pack(v u32) []byte {
 	mut res := []byte{}
 	mut value := v
 	if value >= 0x80 {
-		res << value | 0x80
+		res << byte(value | 0x80)
 		value >>= 7
 		if value >= 0x80 {
-			res << value | 0x80
+			res << byte(value | 0x80)
 			value >>= 7
 			if value >= 0x80 {
-				res << value | 0x80
+				res << byte(value | 0x80)
 				value >>= 7
 				if value >= 0x80 {
-					res << value | 0x80
+					res << byte(value | 0x80)
 					value >>= 7
 				}
 			}
 		}
 	}
-	res << value
+	res << byte(value)
 	return res
 }
 
@@ -317,23 +317,23 @@ fn uint64_pack(value u64) []byte {
 	if hi == 0 {
 		return uint32_pack(lo)
 	}
-	res << (lo) | 0x80
-	res << (lo>>7) | 0x80
-	res << (lo>>14) | 0x80
-	res << (lo>>21) | 0x80
+	res << byte((lo)) | 0x80
+	res << byte((lo>>7)) | 0x80
+	res << byte((lo>>14)) | 0x80
+	res << byte((lo>>21)) | 0x80
 	if hi < 8 {
-		res << (hi<<4) | (lo>>28)
+		res << byte((hi<<4) | (lo>>28))
 		return res
 	}
 	else {
-		res << ((hi & 7)<<4) | (lo>>28) | 0x80
+		res << byte(((hi & 7)<<4) | (lo>>28)) | 0x80
 		hi >>= 3
 	}
 	for hi >= 128 {
-		res << hi | 0x80
+		res << byte(hi) | 0x80
 		hi >>= 7
 	}
-	res << hi
+	res << byte(hi)
 	return res
 }
 
