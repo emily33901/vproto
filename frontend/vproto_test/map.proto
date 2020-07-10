@@ -1,0 +1,6 @@
+package vproto_test;
+
+message TestMapFields {
+    map<string, int32> map1 = 1;
+    map<string, TestMapFields> complexMap = 2;
+}
