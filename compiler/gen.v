@@ -79,13 +79,13 @@ fn (mut g Gen) gen_enum_definition(type_context []string, e &Enum) {
 	// generate packing and unpacking functions
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
-	g.text.writeln('fn pack_${e_full_name}(e $e_name, num u32) []byte {')
+	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}(e $e_name, num u32) []byte {')
 	g.text.writeln('return vproto.pack_int32_field(int(e), num)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
-	g.text.writeln('fn unpack_${e_full_name}(buf []byte, tag_wiretype vproto.WireType) (int, $e_name) {')
-	g.text.writeln('i, v := vproto.unpack_int32_field(buf, tag_wiretype)')
+	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $e_name) {')
+	g.text.writeln('i, v := vproto.unpack_int32_field(buf, tag_wiretype)?')
 	g.text.writeln('return i, ${e_name}(v)')
 	g.text.writeln('}')
 
@@ -179,7 +179,7 @@ fn (g &Gen) type_pack_name(pack_or_unpack string, field_proto_type string, field
 		}
 
 		.enum_, .message {
-			return '${pack_or_unpack}_$field_v_type'
+			return '${vproto_ifp}${pack_or_unpack}_$field_v_type'
 		}
 	}
 }
@@ -219,7 +219,7 @@ fn (g &Gen) gen_field_pack_text(
 
 			// TODO make this into a oneliner again once match bug is fixed
 
-			unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)')
+			unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 			unpack.writeln('res.$name = v')
 			unpack.writeln('i = ii')
 			unpack.writeln('}')
@@ -234,7 +234,7 @@ fn (g &Gen) gen_field_pack_text(
 
 				unpack.writeln('$number {')
 				unpack.writeln('// [packed=false]')
-				unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)')
+				unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 				unpack.writeln('res.$name << v')
 				unpack.writeln('i = ii')
 				unpack.writeln('}')
@@ -244,7 +244,7 @@ fn (g &Gen) gen_field_pack_text(
 				
 				unpack.writeln('$number {')
 				unpack.writeln('// [packed=true]')
-				unpack.writeln('ii, v := ${unpack_inside}_packed(cur_buf, tag_wiretype.wire_type)')
+				unpack.writeln('ii, v := ${unpack_inside}_packed(cur_buf, tag_wiretype.wire_type) ?')
 				unpack.writeln('res.$name << v')
 				unpack.writeln('i = ii')
 				unpack.writeln('}')
@@ -285,7 +285,7 @@ fn value_default_value(v_type string, type_type TypeType) string {
 		}
 
 		else {
-			return 'new_${v_type}()'
+			return '${vproto_ifp}new_${v_type}()'
 		}
 	}
 }
@@ -329,12 +329,12 @@ fn (g &Gen) gen_map_field_pack_text(
 				map_tag_wiretype := vproto.unpack_tag_wire_type(bytes[bytes_offset..]) or { return error(\'malformed protobuf (couldnt parse tag & wire type)\') }
 				match map_tag_wiretype.tag {
 					1 {
-						map_ii, kk := ${key_unpack_inside}(bytes[bytes_offset..],  map_tag_wiretype.wire_type)
+						map_ii, kk := ${key_unpack_inside}(bytes[bytes_offset..],  map_tag_wiretype.wire_type)?
 						bytes_offset += map_ii
 						k = kk
 					}
 					2 {
-						map_ii, vv := ${value_unpack_inside}(bytes[bytes_offset..], map_tag_wiretype.wire_type) 
+						map_ii, vv := ${value_unpack_inside}(bytes[bytes_offset..], map_tag_wiretype.wire_type)?
 						bytes_offset += map_ii
 						v = vv
 					}
@@ -383,8 +383,8 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	field_pack_text.writeln('pub fn (o &$m_name) pack() []byte {')
 	field_pack_text.writeln('${pack_unpack_mut}res := []byte{}') // TODO allocate correct size statically
 	
-	field_unpack_text.writeln('pub fn (mut res ${m_full_name}) unpack(buf []byte) ?$m_name {')
-	// field_unpack_text.writeln('${pack_unpack_mut}res := $m_name{}')
+	field_unpack_text.writeln('pub fn ${m_full_name}_unpack(buf []byte) ?$m_name {')
+	field_unpack_text.writeln('${pack_unpack_mut}res := $m_name{}')
 
 	if has_fields {
 		field_unpack_text.writeln('mut total := 0
@@ -503,25 +503,25 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	field_unpack_text.writeln('return res')
 	field_unpack_text.writeln('}')
 
-	// Function for creating a new of that message
-
-	g.text.writeln('pub fn new_${m_full_name}() $m_name {')
-	g.text.writeln('return $m_name{}')
-	g.text.writeln('}')
-
 	g.text.writeln(field_pack_text.str())
 	g.text.writeln(field_unpack_text.str())
 
 	// pack and unpack wrappers for when its called as a submessage
+
 	g.text.writeln('// FOR INTERNAL USE ONLY')
-	g.text.writeln('pub fn pack_${m_full_name}(o $m_name, num u32) []byte {')
+	g.text.writeln('pub fn ${vproto_ifp}new_${m_full_name}() $m_name {')
+	g.text.writeln('return $m_name{}')
+	g.text.writeln('}')
+	
+	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('pub fn ${vproto_ifp}pack_${m_full_name}(o $m_name, num u32) []byte {')
 	g.text.writeln('return vproto.pack_message_field(o.pack(), num)')
 	g.text.writeln('}')
 	
 	g.text.writeln('// FOR INTERNAL USE ONLY')
-	g.text.writeln('pub fn unpack_${m_full_name}(buf []byte, tag_wiretype vproto.WireType) (int, $m_name) {')
-	g.text.writeln('i, v := vproto.unpack_message_field(buf, tag_wiretype)')
-	g.text.writeln('unpacked := ${m_full_name}_unpack(v) or { panic(\'\') }')
+	g.text.writeln('pub fn ${vproto_ifp}unpack_${m_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $m_name) {')
+	g.text.writeln('i, v := vproto.unpack_message_field(buf, tag_wiretype)?')
+	g.text.writeln('mut unpacked := ${m_full_name}_unpack(v)?')
 	g.text.writeln('return i, unpacked')
 	g.text.writeln('}')
 

@@ -577,7 +577,6 @@ fn fixed32_unpack(buf []byte) u32 {
 fn fixed32_unpack_packed(buf []byte) (int, []u32) {
 	i, bytes := bytes_unpack(buf)
 
-	assert bytes.len % 4 == 0
 	len := bytes.len / 4
 	
 	ret := []u32{len: len}

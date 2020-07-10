@@ -10,17 +10,13 @@ pub mut:
 	comment        string
 }
 
-pub fn new_personphonenumbercomment() PersonPhoneNumberComment {
-	return PersonPhoneNumberComment{}
-}
-
 pub fn (o &PersonPhoneNumberComment) pack() []byte {
 	mut res := []byte{}
 	res << vproto.pack_string_field(o.comment, 1)
 	return res
 }
 
-pub fn (mut res personphonenumbercomment) unpack(buf []byte) ?PersonPhoneNumberComment {
+pub fn (mut res PersonPhoneNumberComment) unpack(buf []byte) ? {
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -31,7 +27,7 @@ pub fn (mut res personphonenumbercomment) unpack(buf []byte) ?PersonPhoneNumberC
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
 				res.comment = v
 				i = ii
 			}
@@ -51,16 +47,19 @@ pub fn (mut res personphonenumbercomment) unpack(buf []byte) ?PersonPhoneNumberC
 }
 
 // FOR INTERNAL USE ONLY
+pub fn new_personphonenumbercomment() PersonPhoneNumberComment {
+	return PersonPhoneNumberComment{}
+}
+
+// FOR INTERNAL USE ONLY
 pub fn pack_personphonenumbercomment(o PersonPhoneNumberComment, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_personphonenumbercomment(buf []byte, tag_wiretype vproto.WireType) (int, PersonPhoneNumberComment) {
+pub fn unpack_personphonenumbercomment(buf []byte, tag_wiretype vproto.WireType) ?(int, PersonPhoneNumberComment) {
 	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := personphonenumbercomment_unpack(v) or {
-		panic('')
-	}
+	unpacked := PersonPhoneNumberComment{}.unpack(v)?
 	return i, unpacked
 }
 
@@ -75,10 +74,6 @@ pub mut:
 	has_comment    bool
 }
 
-pub fn new_personphonenumber() PersonPhoneNumber {
-	return PersonPhoneNumber{}
-}
-
 pub fn (o &PersonPhoneNumber) pack() []byte {
 	mut res := []byte{}
 	res << vproto.pack_string_field(o.number, 1)
@@ -91,7 +86,7 @@ pub fn (o &PersonPhoneNumber) pack() []byte {
 	return res
 }
 
-pub fn (mut res personphonenumber) unpack(buf []byte) ?PersonPhoneNumber {
+pub fn (mut res PersonPhoneNumber) unpack(buf []byte) ? {
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -102,19 +97,19 @@ pub fn (mut res personphonenumber) unpack(buf []byte) ?PersonPhoneNumber {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
 				res.number = v
 				i = ii
 			}
 			2 {
 				res.has_type = true
-				ii, v := unpack_personphonetype(cur_buf, tag_wiretype.wire_type)
+				ii, v := unpack_personphonetype(cur_buf, tag_wiretype.wire_type)?
 				res.type = v
 				i = ii
 			}
 			3 {
 				res.has_comment = true
-				ii, v := unpack_personphonenumbercomment(cur_buf, tag_wiretype.wire_type)
+				ii, v := unpack_personphonenumbercomment(cur_buf, tag_wiretype.wire_type)?
 				res.comment = v
 				i = ii
 			}
@@ -134,16 +129,19 @@ pub fn (mut res personphonenumber) unpack(buf []byte) ?PersonPhoneNumber {
 }
 
 // FOR INTERNAL USE ONLY
+pub fn new_personphonenumber() PersonPhoneNumber {
+	return PersonPhoneNumber{}
+}
+
+// FOR INTERNAL USE ONLY
 pub fn pack_personphonenumber(o PersonPhoneNumber, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_personphonenumber(buf []byte, tag_wiretype vproto.WireType) (int, PersonPhoneNumber) {
+pub fn unpack_personphonenumber(buf []byte, tag_wiretype vproto.WireType) ?(int, PersonPhoneNumber) {
 	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := personphonenumber_unpack(v) or {
-		panic('')
-	}
+	unpacked := PersonPhoneNumber{}.unpack(v)?
 	return i, unpacked
 }
 
@@ -176,10 +174,6 @@ pub mut:
 	phone          []PersonPhoneNumber
 }
 
-pub fn new_person() Person {
-	return Person{}
-}
-
 pub fn (o &Person) pack() []byte {
 	mut res := []byte{}
 	res << vproto.pack_string_field(o.name, 1)
@@ -194,7 +188,7 @@ pub fn (o &Person) pack() []byte {
 	return res
 }
 
-pub fn (mut res person) unpack(buf []byte) ?Person {
+pub fn (mut res Person) unpack(buf []byte) ? {
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -205,24 +199,24 @@ pub fn (mut res person) unpack(buf []byte) ?Person {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
 				res.name = v
 				i = ii
 			}
 			2 {
-				ii, v := vproto.unpack_int32_field(cur_buf, tag_wiretype.wire_type)
+				ii, v := vproto.unpack_int32_field(cur_buf, tag_wiretype.wire_type)?
 				res.id = v
 				i = ii
 			}
 			3 {
 				res.has_email = true
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
 				res.email = v
 				i = ii
 			}
 			4 {
 				// [packed=false]
-				ii, v := unpack_personphonenumber(cur_buf, tag_wiretype.wire_type)
+				ii, v := unpack_personphonenumber(cur_buf, tag_wiretype.wire_type)?
 				res.phone << v
 				i = ii
 			}
@@ -242,16 +236,19 @@ pub fn (mut res person) unpack(buf []byte) ?Person {
 }
 
 // FOR INTERNAL USE ONLY
+pub fn new_person() Person {
+	return Person{}
+}
+
+// FOR INTERNAL USE ONLY
 pub fn pack_person(o Person, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_person(buf []byte, tag_wiretype vproto.WireType) (int, Person) {
+pub fn unpack_person(buf []byte, tag_wiretype vproto.WireType) ?(int, Person) {
 	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := person_unpack(v) or {
-		panic('')
-	}
+	unpacked := Person{}.unpack(v)?
 	return i, unpacked
 }
 
@@ -263,10 +260,6 @@ pub mut:
 	has_person     bool
 }
 
-pub fn new_lookupresult() LookupResult {
-	return LookupResult{}
-}
-
 pub fn (o &LookupResult) pack() []byte {
 	mut res := []byte{}
 	if o.has_person {
@@ -275,7 +268,7 @@ pub fn (o &LookupResult) pack() []byte {
 	return res
 }
 
-pub fn (mut res lookupresult) unpack(buf []byte) ?LookupResult {
+pub fn (mut res LookupResult) unpack(buf []byte) ? {
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -287,7 +280,7 @@ pub fn (mut res lookupresult) unpack(buf []byte) ?LookupResult {
 		match tag_wiretype.tag {
 			1 {
 				res.has_person = true
-				ii, v := unpack_person(cur_buf, tag_wiretype.wire_type)
+				ii, v := unpack_person(cur_buf, tag_wiretype.wire_type)?
 				res.person = v
 				i = ii
 			}
@@ -307,16 +300,19 @@ pub fn (mut res lookupresult) unpack(buf []byte) ?LookupResult {
 }
 
 // FOR INTERNAL USE ONLY
+pub fn new_lookupresult() LookupResult {
+	return LookupResult{}
+}
+
+// FOR INTERNAL USE ONLY
 pub fn pack_lookupresult(o LookupResult, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_lookupresult(buf []byte, tag_wiretype vproto.WireType) (int, LookupResult) {
+pub fn unpack_lookupresult(buf []byte, tag_wiretype vproto.WireType) ?(int, LookupResult) {
 	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := lookupresult_unpack(v) or {
-		panic('')
-	}
+	unpacked := LookupResult{}.unpack(v)?
 	return i, unpacked
 }
 
@@ -328,10 +324,6 @@ pub mut:
 	has_name       bool
 }
 
-pub fn new_name() Name {
-	return Name{}
-}
-
 pub fn (o &Name) pack() []byte {
 	mut res := []byte{}
 	if o.has_name {
@@ -340,7 +332,7 @@ pub fn (o &Name) pack() []byte {
 	return res
 }
 
-pub fn (mut res name) unpack(buf []byte) ?Name {
+pub fn (mut res Name) unpack(buf []byte) ? {
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -352,7 +344,7 @@ pub fn (mut res name) unpack(buf []byte) ?Name {
 		match tag_wiretype.tag {
 			1 {
 				res.has_name = true
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
 				res.name = v
 				i = ii
 			}
@@ -372,15 +364,18 @@ pub fn (mut res name) unpack(buf []byte) ?Name {
 }
 
 // FOR INTERNAL USE ONLY
+pub fn new_name() Name {
+	return Name{}
+}
+
+// FOR INTERNAL USE ONLY
 pub fn pack_name(o Name, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_name(buf []byte, tag_wiretype vproto.WireType) (int, Name) {
+pub fn unpack_name(buf []byte, tag_wiretype vproto.WireType) ?(int, Name) {
 	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := name_unpack(v) or {
-		panic('')
-	}
+	unpacked := Name{}.unpack(v)?
 	return i, unpacked
 }

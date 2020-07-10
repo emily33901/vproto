@@ -145,3 +145,10 @@ pub struct Service {
 	method  []&ServiceMethod
 	options []&OptionField
 }
+
+
+const (
+	// Internal function prefix to deter people from using functions
+	// that they are not supposed to
+	vproto_ifp = "zzz_vproto_internal_"
+)

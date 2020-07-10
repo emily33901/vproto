@@ -186,108 +186,114 @@ pub fn unpack_tag_wire_type(b []byte) ?TagWireType {
 				i + 1,tag,wire_type}
 		}
 	}
-	return error('bad header')
+	return error('Bad header')
+}
+
+pub fn ensure_wiretype(w, expected WireType) ? {
+	if w != expected {
+		return error('Malformed: Invalid wiretype')
+	}
 }
 
 // all of these return the number of consumed bytes + the value
-pub fn unpack_sint32_field(buf []byte, wire_type WireType) (int,int) {
-	assert wire_type == .varint
+pub fn unpack_sint32_field(buf []byte, wire_type WireType) ?(int, int) {
+	ensure_wiretype(wire_type, .varint)?
 	i,v := uint32_unpack(buf)
 	return i,unzigzag32(v)
 }
 
-pub fn unpack_int32_field(buf []byte, wire_type WireType) (int,int) {
-	assert wire_type == .varint
+pub fn unpack_int32_field(buf []byte, wire_type WireType) ?(int, int) {
+	ensure_wiretype(wire_type, .varint)?
 	return int32_unpack(buf)
 }
 
-pub fn unpack_int32_field_packed(buf []byte, wire_type WireType) (int, []int) {
-	assert wire_type == .length_prefixed
+pub fn unpack_int32_field_packed(buf []byte, wire_type WireType) ?(int, []int) {
+	ensure_wiretype(wire_type, .length_prefixed)?
 	return int32_unpack_packed(buf)
 }
 
-pub fn unpack_uint32_field_packed(buf []byte, wire_type WireType) (int, []u32) {
-	assert wire_type == .length_prefixed
+pub fn unpack_uint32_field_packed(buf []byte, wire_type WireType) ?(int, []u32) {
+	ensure_wiretype(wire_type, .length_prefixed)?
 	return uint32_unpack_packed(buf)
 }
 
-pub fn unpack_uint32_field(buf []byte, wire_type WireType) (int,u32) {
-	assert wire_type == .varint
+pub fn unpack_uint32_field(buf []byte, wire_type WireType) ?(int,u32) {
+	ensure_wiretype(wire_type, .varint)?
 	return uint32_unpack(buf)
 }
 
-pub fn unpack_sint64_field(buf []byte, wire_type WireType) (int,i64) {
-	assert wire_type == .varint
+pub fn unpack_sint64_field(buf []byte, wire_type WireType) ?(int,i64) {
+	ensure_wiretype(wire_type, .varint)?
 	i,v := uint64_unpack(buf)
 	return i,unzigzag64(v)
 }
 
-pub fn unpack_int64_field(buf []byte, wire_type WireType) (int,i64) {
-	assert wire_type == .varint
+pub fn unpack_int64_field(buf []byte, wire_type WireType) ?(int,i64) {
+	ensure_wiretype(wire_type, .varint)?
 	i,v := uint64_unpack(buf)
 	return i,*(&i64(&v))
 }
 
-pub fn unpack_uint64_field(buf []byte, wire_type WireType) (int,u64) {
-	assert wire_type == .varint
+pub fn unpack_uint64_field(buf []byte, wire_type WireType) ?(int,u64) {
+	ensure_wiretype(wire_type, .varint)?
 	return uint64_unpack(buf)
 }
 
-pub fn unpack_32bit_field(buf []byte, wire_type WireType) (int,u32) {
-	assert wire_type == ._32bit
+pub fn unpack_32bit_field(buf []byte, wire_type WireType) ?(int,u32) {
+	ensure_wiretype(wire_type, ._32bit)?
 	return 4,fixed32_unpack(buf)
 }
 
-pub fn unpack_32bit_field_packed(buf []byte, wire_type WireType) (int,[]u32) {
-	assert wire_type == .length_prefixed
+pub fn unpack_32bit_field_packed(buf []byte, wire_type WireType) ?(int,[]u32) {
+	ensure_wiretype(wire_type, .length_prefixed)?
 	return fixed32_unpack_packed(buf)
 }
 
-pub fn unpack_64bit_field(buf []byte, wire_type WireType) (int,u64) {
-	assert wire_type == ._64bit
+pub fn unpack_64bit_field(buf []byte, wire_type WireType) ?(int,u64) {
+	ensure_wiretype(wire_type, ._64bit)?
 	return 8,fixed64_unpack(buf)
 }
 
-pub fn unpack_s32bit_field(buf []byte, wire_type WireType) (int,int) {
-	assert wire_type == ._32bit
+pub fn unpack_s32bit_field(buf []byte, wire_type WireType) ?(int,int) {
+	ensure_wiretype(wire_type, ._32bit)?
 	v := fixed32_unpack(buf)
 	return 4,*(&int(&v))
 }
 
-pub fn unpack_s64bit_field(buf []byte, wire_type WireType) (int,i64) {
-	assert wire_type == ._64bit
+pub fn unpack_s64bit_field(buf []byte, wire_type WireType) ?(int,i64) {
+	ensure_wiretype(wire_type, ._64bit)?
 	v := fixed64_unpack(buf)
 	return 8,*(&i64(&v))
 }
 
-pub fn unpack_float_field(buf []byte, wire_type WireType) (int,f32) {
-	_, v := unpack_32bit_field(buf, wire_type)
+pub fn unpack_float_field(buf []byte, wire_type WireType) ?(int,f32) {
+	_, v := unpack_32bit_field(buf, wire_type)?
 	return 4,*(&f32(&v))
 }
 
-pub fn unpack_double_field(buf []byte, wire_type WireType) (int,f64) {
-	_, v := unpack_64bit_field(buf, wire_type)
+pub fn unpack_double_field(buf []byte, wire_type WireType) ?(int,f64) {
+	_, v := unpack_64bit_field(buf, wire_type)?
 	return 8,*(&f64(&v))
 }
 
-pub fn unpack_bool_field(buf []byte, wire_type WireType) (int,bool) {
-	assert wire_type == .varint
+pub fn unpack_bool_field(buf []byte, wire_type WireType) ?(int,bool) {
+	ensure_wiretype(wire_type, .varint)?
 	i,v := uint32_unpack(buf)
 	return i,v != 0
 }
 
-pub fn unpack_string_field(buf []byte, wire_type WireType) (int,string) {
-	assert wire_type == .length_prefixed
+pub fn unpack_string_field(buf []byte, wire_type WireType) ?(int,string) {
+	ensure_wiretype(wire_type, .length_prefixed)?
 	return string_unpack(buf)
 }
 
-pub fn unpack_bytes_field(buf []byte, wire_type WireType) (int,[]byte) {
-	assert wire_type == .length_prefixed
+pub fn unpack_bytes_field(buf []byte, wire_type WireType) ?(int,[]byte) {
+	ensure_wiretype(wire_type, .length_prefixed)?
 	return bytes_unpack(buf)
 }
 
-pub fn unpack_message_field(buf []byte, wire_type WireType) (int,[]byte) {
-	return unpack_bytes_field(buf, wire_type)
+pub fn unpack_message_field(buf []byte, wire_type WireType) ?(int,[]byte) {
+	return unpack_bytes_field(buf, wire_type)?
 }
 
 // When unpacking this is used when we find a field where we dont
