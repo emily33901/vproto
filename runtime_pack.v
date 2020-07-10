@@ -36,8 +36,15 @@ pub fn pack_int32_field(value int, num u32) []byte {
 
 pub fn pack_int32_field_packed(values []int, num u32) []byte {
 	mut ret := []byte{}
-	ret << pack_tag_wire_type(num, .varint)
+	ret << pack_tag_wire_type(num, .length_prefixed)
 	ret << int32_packed_pack(values)
+	return ret
+}
+
+pub fn pack_uint32_field_packed(values []u32, num u32) []byte {
+	mut ret := []byte{}
+	ret << pack_tag_wire_type(num, .length_prefixed)
+	ret << uint32_packed_pack(values)
 	return ret
 }
 
@@ -74,64 +81,44 @@ pub fn pack_uint64_field(value u64, num u32) []byte {
 	return ret
 }
 
-// TODO revert when generics work
-// pub fn pack_32bit_field<T>(value T, num u32) []byte {
-// 	mut ret := []byte{}
-// 	ret << pack_tag_wire_type(num, ._32bit)
-// 	v := *(&u32(&value))
-// 	ret << fixed32_pack(v)
-// 	return ret
-// }
-
-pub fn pack_32bit_field(value voidptr, num u32) []byte {
+pub fn pack_32bit_field(value &u32, num u32) []byte {
 	mut ret := []byte{}
 	ret << pack_tag_wire_type(num, ._32bit)
-	v := *(&u32(&value))
+	v := *(value)
 	ret << fixed32_pack(v)
 	return ret
 }
 
-// TODO revert when generics work
-// pub fn pack_s32bit_field<T>(value T, num u32) []byte {
-// 	return pack_32bit_field(value, num)
-// }
-
-pub fn pack_s32bit_field(value voidptr, num u32) []byte {
-	return pack_32bit_field(value, num)
+pub fn pack_32bit_field_packed(values array, num u32) []byte {
+	mut ret := []byte{}
+	ret << pack_tag_wire_type(num, .length_prefixed)
+	v := array{data: values.data, element_size: 4, len: values.len}
+	ret << fixed32_packed_pack(v)
+	return ret
 }
 
-// TODO revert when generics work
-// pub fn pack_64bit_field<T>(value T, num u32) []byte {
-// 	mut ret := []byte{}
-// 	ret << pack_tag_wire_type(num, ._64bit)
-// 	v := *(&u64(&value))
-// 	ret << fixed64_pack(v)
-// 	return ret
-// }
+pub fn pack_s32bit_field(value &int, num u32) []byte {
+	return pack_32bit_field(&u32(value), num)
+}
 
-pub fn pack_64bit_field(value voidptr, num u32) []byte {
+pub fn pack_64bit_field(value &u64, num u32) []byte {
 	mut ret := []byte{}
 	ret << pack_tag_wire_type(num, ._64bit)
-	v := *(&u64(&value))
+	v := *(&u64(value))
 	ret << fixed64_pack(v)
 	return ret
 }
 
-// TODO revert when generics work
-// pub fn pack_s64bit_field<T>(value T, num u32) []byte {
-// 	return pack_64bit_field(value, num)
-// }
-
-pub fn pack_s64bit_field(value voidptr, num u32) []byte {
-	return pack_64bit_field(value, num)
+pub fn pack_s64bit_field(value i64, num u32) []byte {
+	return pack_64bit_field(&u64(value), num)
 }
 
 pub fn pack_float_field(value f32, num u32) []byte {
-	return pack_32bit_field(&value, num)
+	return pack_32bit_field(&u32(&value), num)
 }
 
 pub fn pack_double_field(value f64, num u32) []byte {
-	return pack_64bit_field(&value, num)
+	return pack_64bit_field(&u64(&value), num)
 }
 
 pub fn pack_bool_field(value bool, num u32) []byte {
@@ -219,6 +206,11 @@ pub fn unpack_int32_field_packed(buf []byte, wire_type WireType) (int, []int) {
 	return int32_unpack_packed(buf)
 }
 
+pub fn unpack_uint32_field_packed(buf []byte, wire_type WireType) (int, []u32) {
+	assert wire_type == .length_prefixed
+	return uint32_unpack_packed(buf)
+}
+
 pub fn unpack_uint32_field(buf []byte, wire_type WireType) (int,u32) {
 	assert wire_type == .varint
 	return uint32_unpack(buf)
@@ -244,6 +236,11 @@ pub fn unpack_uint64_field(buf []byte, wire_type WireType) (int,u64) {
 pub fn unpack_32bit_field(buf []byte, wire_type WireType) (int,u32) {
 	assert wire_type == ._32bit
 	return 4,fixed32_unpack(buf)
+}
+
+pub fn unpack_32bit_field_packed(buf []byte, wire_type WireType) (int,[]u32) {
+	assert wire_type == .length_prefixed
+	return fixed32_unpack_packed(buf)
 }
 
 pub fn unpack_64bit_field(buf []byte, wire_type WireType) (int,u64) {

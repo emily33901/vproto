@@ -1,5 +1,5 @@
 Module {
-    name: 'vproto'
-    version: '0.0.6'
-    deps: []
+	name: 'vproto',
+	description: 'Protobuf runtime support',
+	dependencies: []
 }

@@ -244,6 +244,16 @@ fn int32_packed_pack(values []int) []byte {
 	return bytes_pack(packed)
 }
 
+fn uint32_packed_pack(values []u32) []byte {
+	mut packed := []byte{}
+
+	for v in values {
+		packed << uint32_pack(v)
+	}
+
+	return bytes_pack(packed)
+}
+
 /**
  * Pack an unsigned 32-bit integer in base-128 varint encoding and return the
  * number of bytes written, which must be 5 or less.
@@ -368,12 +378,20 @@ fn sint64_pack(value i64) []byte {
 
 
 fn fixed32_pack(value u32) []byte {
-	v := [byte(0), 0, 0, 0]
+	v := []byte{len: 4}
 	C.memcpy(&v[0], &value, 4)
 	return v
-	// v := *byte(&value)
-	// return [ v[0], v[1], v[2], v[3] ]
 }
+
+fn fixed32_packed_pack(values []u32) []byte {
+	return array {
+		data:values.data,
+		element_size: 1, 
+		len: values.len * 4
+		cap: values.cap * 4
+	}
+}
+
 /**
  * Pack a 64-bit quantity in little-endian byte order. Used for protobuf wire
  * types fixed64, sfixed64, double. Similar to "htole64".
@@ -527,6 +545,20 @@ fn int32_unpack_packed(buf []byte) (int, []int) {
 	return i, ret
 }
 
+fn uint32_unpack_packed(buf []byte) (int, []u32) {
+	i, bytes := bytes_unpack(buf)
+
+	mut ret := []u32{}
+
+	for j := 0; j < bytes.len; {
+		consumed, value := uint32_unpack(bytes[j..])
+		j += consumed
+		ret << value
+	}
+
+	return i, ret
+}
+
 fn unzigzag32(v u32) int {
 	if v & 1 == 1 {
 		return int(-(v>>1) - 1)
@@ -540,6 +572,18 @@ fn fixed32_unpack(buf []byte) u32 {
 	v := u32(0)
 	C.memcpy(&v, &buf[0], 4)
 	return v
+}
+
+fn fixed32_unpack_packed(buf []byte) (int, []u32) {
+	i, bytes := bytes_unpack(buf)
+
+	assert bytes.len % 4 == 0
+	len := bytes.len / 4
+	
+	ret := []u32{len: len}
+	C.memcpy(&ret.data, bytes.data, len)
+	
+	return i, ret
 }
 
 fn fixed64_unpack(buf []byte) u64 {
