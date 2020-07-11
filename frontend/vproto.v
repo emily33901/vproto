@@ -53,7 +53,7 @@ fn parse_args() Args {
 
 fn format_file(path string) {
 	table := table.new_table()
-	ast_file := parser.parse_file(path, table, .parse_comments, &pref.Preferences{}, &ast.Scope{
+	ast_file := parser.parse_file(path, table, .parse_comments, &pref.Preferences{is_fmt: true}, &ast.Scope{
 		parent: 0
 	})
 
