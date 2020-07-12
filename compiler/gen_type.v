@@ -6,21 +6,7 @@ fn to_v_field_name(name string) string {
 
 fn to_v_struct_name(name string) string {
 	mut new_name := name[0].str().to_upper() + name[1..]
-	new_name = new_name.replace_each(['_', '', '.', ''])
-
-	// Get around the capital letters limitations
-	mut was_cap := 0
-	for i, c in new_name {
-		if c >= `A` && c <= `Z` {
-			if was_cap > 1 {
-				new_name = new_name[..i] + c.str().to_lower() + new_name[i+1..]
-			} else {
-				was_cap++
-			}
-		} else {
-			was_cap = 0
-		}
-	}
+	// new_name = new_name.replace_each(['_', '', '.', '_'])
 
 	return new_name
 }
@@ -36,11 +22,9 @@ fn to_v_message_name(pkg_prefix string, context []string, name string) string {
 		struct_name += to_v_struct_name(part)
 	}
 
-	struct_name += to_v_struct_name(name)
+	prefix := if struct_name.len == 0 { '' } else { '_' }
 
-	// TODO when this limitation is removed also do so here!
-
-	struct_name = struct_name.replace_each(['.', ''])
+	struct_name += '$prefix${to_v_struct_name(name)}'
 
 	return pkg_prefix + struct_name
 }
