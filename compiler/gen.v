@@ -84,9 +84,21 @@ fn (mut g Gen) gen_enum_definition(type_context []string, e &Enum) {
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}_packed(e []$e_name, num u32) []byte {')
+	g.text.writeln('x := array{data: e.data, len: e.len, element_size: e.element_size, cap: e.cap}')
+	g.text.writeln('return vproto.pack_int32_field_packed(x, num)')
+	g.text.writeln('}')
+
+	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $e_name) {')
 	g.text.writeln('i, v := vproto.unpack_int32_field(buf, tag_wiretype)?')
 	g.text.writeln('return i, ${e_name}(v)')
+	g.text.writeln('}')
+
+	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}_packed(buf []byte, tag_wiretype vproto.WireType) ?(int, []$e_name) {')
+	g.text.writeln('i, v := vproto.unpack_int32_field_packed(buf, tag_wiretype)?')
+	g.text.writeln('return i, array {data: v.data, len: v.len, cap: v.cap, element_size: v.element_size}')
 	g.text.writeln('}')
 
 	// TODO helper functions here 
@@ -188,7 +200,7 @@ fn (g &Gen) gen_field_pack_text(
 	label, field_proto_type, field_v_type string, 
 	field_TypeType TypeType, 
 	name, raw_name, number string, 
-	is_packed bool
+	is_packed, is_ref_field bool
 ) (string, string) {
 	mut pack := strings.new_builder(100)
 	mut unpack := strings.new_builder(100)
@@ -220,7 +232,11 @@ fn (g &Gen) gen_field_pack_text(
 			// TODO make this into a oneliner again once match bug is fixed
 
 			unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
-			unpack.writeln('res.$name = v')
+			if !is_ref_field {
+				unpack.writeln('res.$name = v')
+			} else {
+				unpack.writeln('res.$name = memdup(&v, int(sizeof($field_v_type_no_mod)))')
+			}
 			unpack.writeln('i = ii')
 			unpack.writeln('}')
 		}
@@ -409,10 +425,17 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	for field in m.fields {
 		// simple_context := simplify_type_context(field.type_context, type_context)
 		// println('$type_context - $field.type_context = $simple_context')
-		field_type, field_type_type := g.type_to_typename(field.type_context, field.t)
+		mut field_type, field_type_type := g.type_to_typename(field.type_context, field.t)
 
 		raw_name := escape_name(field.name)
 		name := escape_keyword(raw_name)
+
+		if field_type == m_name {
+			// Circular reference!
+			field_type = '&$field_type'
+		}
+
+		is_reference_field := field_type[0] == `&`
 
 		if field.label == 'optional' {
 			g.text.writeln('${name} ${field_type}')
@@ -442,9 +465,9 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 			names := g.message_names(field.type_context, field.t)
 
 			// n := (field.type_context.join('') + names.lowercase_name).to_lower()
-			pack_text, unpack_text = g.gen_field_pack_text(field.label, field.t, names.lowercase_name, field_type_type, name, raw_name, field.number, is_packed)
+			pack_text, unpack_text = g.gen_field_pack_text(field.label, field.t, names.lowercase_name, field_type_type, name, raw_name, field.number, is_packed, is_reference_field)
 		} else {
-			pack_text, unpack_text = g.gen_field_pack_text(field.label, field.t, field_type, field_type_type, name, raw_name, field.number, is_packed)
+			pack_text, unpack_text = g.gen_field_pack_text(field.label, field.t, field_type, field_type_type, name, raw_name, field.number, is_packed, false)
 		}
 
 		field_pack_text.writeln(pack_text)
