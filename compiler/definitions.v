@@ -78,7 +78,7 @@ const (
 		'int', 'i64',
 		'bool', 
 		'string', '[]byte']
-	keywords_v    = ['type', 'none']
+	keywords_v    = ['type', 'none', 'module', 'match', 'or', 'select']
 	type_max_scalar_index = 12
 )
 
