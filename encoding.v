@@ -254,6 +254,16 @@ fn uint32_packed_pack(values []u32) []byte {
 	return bytes_pack(packed)
 }
 
+fn uint64_packed_pack(values []u64) []byte {
+	mut packed := []byte{}
+
+	for v in values {
+		packed << uint64_pack(v)
+	}
+
+	return bytes_pack(packed)
+}
+
 /**
  * Pack an unsigned 32-bit integer in base-128 varint encoding and return the
  * number of bytes written, which must be 5 or less.
@@ -410,12 +420,22 @@ fn fixed32_packed_pack(values []u32) []byte {
 
 
 fn fixed64_pack(value u64) []byte {
-	v := [byte(0), 0, 0, 0, 0, 0, 0, 0]
+	v := []byte{len: 8}
 	C.memcpy(&v[0], &value, 8)
 	return v
 	// v := *byte(&value)
 	// return [ v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] ]
 }
+
+fn fixed64_packed_pack(values []u32) []byte {
+	return array {
+		data:values.data,
+		element_size: 1, 
+		len: values.len * 8
+		cap: values.cap * 8
+	}
+}
+
 /**
  * Pack a boolean value as an integer and return the number of bytes written.
  *
@@ -559,6 +579,20 @@ fn uint32_unpack_packed(buf []byte) (int, []u32) {
 	return i, ret
 }
 
+fn uint64_unpack_packed(buf []byte) (int, []u64) {
+	i, bytes := bytes_unpack(buf)
+
+	mut ret := []u64{}
+
+	for j := 0; j < bytes.len; {
+		consumed, value := uint64_unpack(bytes[j..])
+		j += consumed
+		ret << value
+	}
+
+	return i, ret
+}
+
 fn unzigzag32(v u32) int {
 	if v & 1 == 1 {
 		return int(-(v>>1) - 1)
@@ -589,6 +623,17 @@ fn fixed64_unpack(buf []byte) u64 {
 	v := u64(0)
 	C.memcpy(&v, &buf[0], 8)
 	return v
+}
+
+fn fixed64_unpack_packed(buf []byte) (int, []u64) {
+	i, bytes := bytes_unpack(buf)
+
+	len := bytes.len / 8
+	
+	ret := []u64{len: len}
+	C.memcpy(&ret.data, bytes.data, len)
+	
+	return i, ret
 }
 
 fn uint64_unpack(buf []byte) (int,u64) {

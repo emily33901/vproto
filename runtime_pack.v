@@ -26,6 +26,13 @@ pub fn pack_sint32_field(value int, num u32) []byte {
 	return ret
 }
 
+pub fn pack_sint32_field_packed(values []int, num u32) []byte {
+	mut ret := []byte{}
+	ret << pack_tag_wire_type(num, .length_prefixed)
+	ret << uint32_packed_pack(values.map(zigzag32(it)))
+	return ret
+}
+
 // enum or int32
 pub fn pack_int32_field(value int, num u32) []byte {
 	mut ret := []byte{}
@@ -81,6 +88,13 @@ pub fn pack_uint64_field(value u64, num u32) []byte {
 	return ret
 }
 
+pub fn pack_uint64_field_packed(values []u64, num u32) []byte {
+	mut ret := []byte{}
+	ret << pack_tag_wire_type(num, .length_prefixed)
+	ret << uint64_packed_pack(values)
+	return ret
+}
+
 pub fn pack_32bit_field(value &u32, num u32) []byte {
 	mut ret := []byte{}
 	ret << pack_tag_wire_type(num, ._32bit)
@@ -106,6 +120,14 @@ pub fn pack_64bit_field(value &u64, num u32) []byte {
 	ret << pack_tag_wire_type(num, ._64bit)
 	v := *(&u64(value))
 	ret << fixed64_pack(v)
+	return ret
+}
+
+pub fn pack_64bit_field_packed(values array, num u32) []byte {
+	mut ret := []byte{}
+	ret << pack_tag_wire_type(num, .length_prefixed)
+	v := array{data: values.data, element_size: 8, len: values.len}
+	ret << fixed64_packed_pack(v)
 	return ret
 }
 
@@ -202,6 +224,12 @@ pub fn unpack_sint32_field(buf []byte, wire_type WireType) ?(int, int) {
 	return i,unzigzag32(v)
 }
 
+pub fn unpack_sint32_field_packed(buf []byte, wire_type WireType) ?(int, []int) {
+	ensure_wiretype(wire_type, .length_prefixed)?
+	i, v := uint32_unpack_packed(buf)
+	return i, v.map(unzigzag32(it))
+}
+
 pub fn unpack_int32_field(buf []byte, wire_type WireType) ?(int, int) {
 	ensure_wiretype(wire_type, .varint)?
 	return int32_unpack(buf)
@@ -239,6 +267,11 @@ pub fn unpack_uint64_field(buf []byte, wire_type WireType) ?(int,u64) {
 	return uint64_unpack(buf)
 }
 
+pub fn unpack_uint64_field_packed(buf []byte, wire_type WireType) ?(int, []u64) {
+	ensure_wiretype(wire_type, .length_prefixed)?
+	return uint64_unpack_packed(buf)
+}
+
 pub fn unpack_32bit_field(buf []byte, wire_type WireType) ?(int,u32) {
 	ensure_wiretype(wire_type, ._32bit)?
 	return 4,fixed32_unpack(buf)
@@ -252,6 +285,11 @@ pub fn unpack_32bit_field_packed(buf []byte, wire_type WireType) ?(int,[]u32) {
 pub fn unpack_64bit_field(buf []byte, wire_type WireType) ?(int,u64) {
 	ensure_wiretype(wire_type, ._64bit)?
 	return 8,fixed64_unpack(buf)
+}
+
+pub fn unpack_64bit_field_packed(buf []byte, wire_type WireType) ?(int,[]u64) {
+	ensure_wiretype(wire_type, .length_prefixed)?
+	return fixed64_unpack_packed(buf)
 }
 
 pub fn unpack_s32bit_field(buf []byte, wire_type WireType) ?(int,int) {
