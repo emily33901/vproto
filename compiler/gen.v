@@ -430,7 +430,7 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 		raw_name := escape_name(field.name)
 		name := escape_keyword(raw_name)
 
-		if field_type == m_name {
+		if field_type == m_name && field.label != 'repeated' {
 			// Circular reference!
 			field_type = '&$field_type'
 		}

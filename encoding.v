@@ -5,106 +5,6 @@ module vproto
 const (
 	protobuf_number_max = (2 ^ 29) - 1
 )
-/**
- * Return the number of bytes required to store the tag for the field. Includes
- * 3 bits for the wire-type, and a single bit that denotes the end-of-tag.
- *
- * \param number
- *      Field tag to encode.
- * \return
- *      Number of bytes required.
- */
-
-
-fn get_tag_size(number int) u32 {
-	if number < (1<<4) {
-		return 1
-	}
-	else if number < (1<<11) {
-		return 2
-	}
-	else if number < (1<<18) {
-		return 3
-	}
-	else if number < (1<<25) {
-		return 4
-	}
-	else {
-		return 5
-	}
-}
-
-/**
- * Return the number of bytes required to store a variable-length unsigned
- * 32-bit integer in base-128 varint encoding.
- *
- * \param v
- *      Value to encode.
- * \return
- *      Number of bytes required.
- */
-
-
-fn uint32_size(v u32) u32 {
-	if v < (1<<7) {
-		return 1
-	}
-	else if v < (1<<14) {
-		return 2
-	}
-	else if v < (1<<21) {
-		return 3
-	}
-	else if v < (1<<28) {
-		return 4
-	}
-	else {
-		return 5
-	}
-}
-
-/**
- * Return the number of bytes required to store a variable-length signed 32-bit
- * integer in base-128 varint encoding.
- *
- * \param v
- *      Value to encode.
- * \return
- *      Number of bytes required.
- */
-
-
-fn int32_size(v int) u32 {
-	if v < 0 {
-		return 10
-	}
-	else if v < (1<<7) {
-		return 1
-	}
-	else if v < (1<<14) {
-		return 2
-	}
-	else if v < (1<<21) {
-		return 3
-	}
-	else if v < (1<<28) {
-		return 4
-	}
-	else {
-		return 5
-	}
-}
-
-/**
- * Return the ZigZag-encoded 32-bit unsigned integer form of a 32-bit signed
- * integer.
- *
- * \param v
- *      Value to encode.
- * \return
- *      ZigZag encoded integer.
- */
-
 
 fn zigzag32(v int) u32 {
 	if v < 0 {
@@ -112,58 +12,6 @@ fn zigzag32(v int) u32 {
 	}
 	else {
 		return u32(v) * 2
-	}
-}
-
-/**
- * Return the number of bytes required to store a signed 32-bit integer,
- * converted to an unsigned 32-bit integer with ZigZag encoding, using base-128
- * varint encoding.
- *
- * \param v
- *      Value to encode.
- * \return
- *      Number of bytes required.
- */
-
-
-fn sint32_size(v int) u32 {
-	return uint32_size(zigzag32(v))
-}
-
-/**
- * Return the number of bytes required to store a 64-bit unsigned integer in
- * base-128 varint encoding.
- *
- * \param v
- *      Value to encode.
- * \return
- *      Number of bytes required.
- */
-
-
-fn uint64_size(v u64) u32 {
-	upper_v := u32(v>>32)
-	if upper_v == 0 {
-		return uint32_size(u32(v))
-	}
-	else if upper_v < (1<<3) {
-		return 5
-	}
-	else if upper_v < (1<<10) {
-		return 6
-	}
-	else if upper_v < (1<<17) {
-		return 7
-	}
-	else if upper_v < (1<<24) {
-		return 8
-	}
-	else if upper_v < (1<<31) {
-		return 9
-	}
-	else {
-		return 10
 	}
 }
 
@@ -186,35 +34,6 @@ fn zigzag64(v i64) u64 {
 		return u64(v) * 2
 	}
 }
-
-/**
- * Return the number of bytes required to store a signed 64-bit integer,
- * converted to an unsigned 64-bit integer with ZigZag encoding, using base-128
- * varint encoding.
- *
- * \param v
- *      Value to encode.
- * \return
- *      Number of bytes required.
- */
-
-
-fn sint64_size(v i64) u32 {
-	return uint64_size(zigzag64(v))
-}
-
-/**
- * Pack a signed 32-bit integer and return the number of bytes written.
- * Negative numbers are encoded as two's complement 64-bit integers.
- *
- * \param value
- *      Value to encode.
- * \param[out] out
- *      Packed value.
- * \return
- *      Number of bytes written to `out`.
- */
-
 
 fn int32_pack(value int) []byte {
 	if value < 0 {
@@ -547,7 +366,10 @@ fn uint32_unpack(buf []byte) (int,u32) {
 }
 
 fn int32_unpack(buf []byte) (int,int) {
-	i,v := uint32_unpack(buf)
+	// NOTE: negative int32 values are stored as a
+	// twos compliment 64bit integer!
+	// So make sure we get all those tasty bits!
+	i, v := uint64_unpack(buf)
 	return i,int(v)
 }
 
