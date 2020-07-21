@@ -1,5 +1,8 @@
 module vproto
+
 // higher level functions for packing fields of different types
+
+// WireType is the protobuf wiretype of the field
 pub enum WireType {
 	varint = 0
 	_64bit = 1
@@ -7,7 +10,6 @@ pub enum WireType {
 	// we dont support groups
 	_32bit = 5
 }
-
 
 fn pack_wire_type(w WireType) byte {
 	return byte(w)

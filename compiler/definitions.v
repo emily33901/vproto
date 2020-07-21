@@ -146,7 +146,6 @@ pub struct Service {
 	options []&OptionField
 }
 
-
 const (
 	// Internal function prefix to deter people from using functions
 	// that they are not supposed to

@@ -69,33 +69,45 @@ fn (mut g Gen) gen_enum_definition(type_context []string, e &Enum) {
 	g.text.writeln('[_allow_multiple_values]')
 	g.text.writeln('enum ${e_name} {')
 
-	for _, field in e.fields {
+	mut default_value := '${e_name}(0)'
+
+	for i, field in e.fields {
 		escaped_name := escape_keyword(escape_name(to_v_field_name(field.name)))
+		if i == 0 { default_value = '.$escaped_name' }
 		g.text.writeln('$escaped_name = $field.value.value')
 	}
 
 	g.text.writeln('}')
 
 	// generate packing and unpacking functions
+	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
+	g.text.writeln('fn ${vproto_ifp}new_${e_full_name}() $e_name {')
+	g.text.writeln('return $default_value')
+	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
 	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}(e $e_name, num u32) []byte {')
 	g.text.writeln('return vproto.pack_int32_field(int(e), num)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
 	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}_packed(e []$e_name, num u32) []byte {')
 	g.text.writeln('x := array{data: e.data, len: e.len, element_size: e.element_size, cap: e.cap}')
 	g.text.writeln('return vproto.pack_int32_field_packed(x, num)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
 	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $e_name) {')
 	g.text.writeln('i, v := vproto.unpack_int32_field(buf, tag_wiretype)?')
 	g.text.writeln('return i, ${e_name}(v)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
 	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}_packed(buf []byte, tag_wiretype vproto.WireType) ?(int, []$e_name) {')
 	g.text.writeln('i, v := vproto.unpack_int32_field_packed(buf, tag_wiretype)?')
 	g.text.writeln('return i, array {data: v.data, len: v.len, cap: v.cap, element_size: v.element_size}')
@@ -198,7 +210,7 @@ fn (g &Gen) type_pack_name(pack_or_unpack string, field_proto_type string, field
 
 fn (g &Gen) gen_field_pack_text(
 	label, field_proto_type, field_v_type string, 
-	field_TypeType TypeType, 
+	field_typetype TypeType, 
 	name, raw_name, number string, 
 	is_packed, is_ref_field bool
 ) (string, string) {
@@ -208,17 +220,23 @@ fn (g &Gen) gen_field_pack_text(
 	field_v_type_no_mod := field_v_type.all_after_last('.')
 	field_v_type_mod := if field_v_type.contains('.') { field_v_type.all_before_last('.') + '.' } else { '' }
 
-	pack_inside := g.type_pack_name('${field_v_type_mod}pack', field_proto_type, field_v_type_no_mod, field_TypeType)
-	unpack_inside := g.type_pack_name('${field_v_type_mod}unpack', field_proto_type, field_v_type_no_mod, field_TypeType)
+	pack_inside := g.type_pack_name('${field_v_type_mod}pack', field_proto_type, field_v_type_no_mod, field_typetype)
+	unpack_inside := g.type_pack_name('${field_v_type_mod}unpack', field_proto_type, field_v_type_no_mod, field_typetype)
 
 	match label {
 		'optional', 'required' {
 			unpack.writeln('$number {')
 
 			if label == 'optional' {
-				pack.writeln('if o.has_$raw_name {')
+				// check whether the field is '0ish', if it is not
+				// then use its value
+				if field_typetype != .message {
+					pack.writeln('if o.$name != ${value_default_value(field_v_type, field_typetype)} {')
+				} else {
+					pack.writeln('if o.${name}.ne(${value_default_value(field_v_type, field_typetype)}) {')
+				}
 
-				unpack.writeln('res.has_$raw_name = true')
+				// unpack.writeln('res.has_$raw_name = true')
 			}
 
 			pack.writeln('res << ${pack_inside}(o.$name, $number)')
@@ -228,7 +246,6 @@ fn (g &Gen) gen_field_pack_text(
 			}
 
 			// unpack text at this point is inside of a match statement checking tag numbers
-
 			// TODO make this into a oneliner again once match bug is fixed
 
 			unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
@@ -296,7 +313,7 @@ fn key_default_value(v_type string) string {
 
 fn value_default_value(v_type string, type_type TypeType) string {
 	match type_type {
-		.other {
+		.other, .scalar {
 			return key_default_value(v_type)
 		}
 
@@ -395,12 +412,20 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 	mut field_pack_text := strings.new_builder(100)
 	mut field_unpack_text := strings.new_builder(100)
+	mut field_equal_text := strings.new_builder(100)
 
 	field_pack_text.writeln('pub fn (o &$m_name) pack() []byte {')
 	field_pack_text.writeln('${pack_unpack_mut}res := []byte{}') // TODO allocate correct size statically
 	
 	field_unpack_text.writeln('pub fn ${m_full_name}_unpack(buf []byte) ?$m_name {')
-	field_unpack_text.writeln('${pack_unpack_mut}res := $m_name{}')
+	// Use the internal new_xxx function here so that we get the default values
+	// if they arent sent in the protobuf
+	field_unpack_text.writeln('${pack_unpack_mut}res := ${vproto_ifp}new_${m_full_name}()')
+
+	field_equal_text.writeln('
+	[inline]
+	pub fn (a $m_name) eq(b $m_name) bool {
+		return true')
 
 	if has_fields {
 		field_unpack_text.writeln('mut total := 0
@@ -416,7 +441,6 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 	g.text.writeln('mut:')
 	g.text.writeln('unknown_fields []vproto.UnknownField')
-
 
 	if has_fields {
 		g.text.writeln('pub mut:')
@@ -439,8 +463,6 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 		if field.label == 'optional' {
 			g.text.writeln('${name} ${field_type}')
-			g.text.writeln('has_${raw_name} bool')
-
 		} else if field.label == 'required' {
 			g.text.writeln('${name} ${field_type}')
 		} else if field.label == 'repeated' {
@@ -454,6 +476,20 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 			for o in field.options {
 				if o.ident == 'packed' {
 					is_packed = o.value.value == 'true'
+				}
+			}
+		}
+
+		if field.label == 'optional' {
+			for o in field.options {
+				if o.ident == 'default' {
+					value := if field_type_type == .enum_ {
+						'.${escape_keyword(escape_name(to_v_field_name(o.value.value)))}'
+					} else {
+						o.value.value
+					}
+
+					g.text.writeln(' = $value')
 				}
 			}
 		}
@@ -472,6 +508,12 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 		field_pack_text.writeln(pack_text)
 		field_unpack_text.writeln(unpack_text)
+
+		if field_type_type == .message {
+			field_equal_text.writeln('&& a.${name}.eq(b.$name)')
+		} else {
+			field_equal_text.writeln('&& a.${name} == b.$name')
+		}
 	}
 
 	for map_field in m.map_fields {
@@ -526,22 +568,50 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	field_unpack_text.writeln('return res')
 	field_unpack_text.writeln('}')
 
+	field_equal_text.writeln('}
+	[inline]
+	pub fn (a $m_name) ne(b $m_name) bool {
+		return !a.eq(b)
+	}
+
+	[inline]
+	pub fn (a []$m_name) eq(b []$m_name) bool {
+		if a.len != b.len { return false }
+		for i, _ in a {
+			if a[i].ne(b[i]) {
+				return false
+			}
+		}
+		return true
+	}
+
+	[inline]
+	pub fn (a []$m_name) ne(b []$m_name) bool {
+		return !a.eq(b)
+	}
+	')
+
 	g.text.writeln(field_pack_text.str())
 	g.text.writeln(field_unpack_text.str())
+	g.text.writeln(field_equal_text.str())
 
 	// pack and unpack wrappers for when its called as a submessage
 
+	g.text.writeln('
+		// FOR INTERNAL USE ONLY
+		[inline]
+		pub fn ${vproto_ifp}new_${m_full_name}() $m_name {
+			return $m_name{}
+		}')
+
 	g.text.writeln('// FOR INTERNAL USE ONLY')
-	g.text.writeln('pub fn ${vproto_ifp}new_${m_full_name}() $m_name {')
-	g.text.writeln('return $m_name{}')
-	g.text.writeln('}')
-	
-	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
 	g.text.writeln('pub fn ${vproto_ifp}pack_${m_full_name}(o $m_name, num u32) []byte {')
 	g.text.writeln('return vproto.pack_message_field(o.pack(), num)')
 	g.text.writeln('}')
 	
 	g.text.writeln('// FOR INTERNAL USE ONLY')
+	g.text.writeln('[inline]')
 	g.text.writeln('pub fn ${vproto_ifp}unpack_${m_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $m_name) {')
 	g.text.writeln('i, v := vproto.unpack_message_field(buf, tag_wiretype)?')
 	g.text.writeln('mut unpacked := ${m_full_name}_unpack(v)?')
