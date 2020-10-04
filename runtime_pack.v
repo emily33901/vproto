@@ -12,7 +12,7 @@ pub enum WireType {
 }
 
 fn pack_wire_type(w WireType) byte {
-	return byte(w)
+	return byte(int(w))
 }
 
 fn pack_tag_wire_type(tag u32, w WireType) []byte {

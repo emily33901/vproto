@@ -208,7 +208,9 @@ fn sint64_pack(value i64) []byte {
 
 fn fixed32_pack(value u32) []byte {
 	v := []byte{len: 4}
-	C.memcpy(&v[0], &value, 4)
+	unsafe {
+		C.memcpy(&v[0], &value, 4)
+	}
 	return v
 }
 
@@ -240,10 +242,10 @@ fn fixed32_packed_pack(values []u32) []byte {
 
 fn fixed64_pack(value u64) []byte {
 	v := []byte{len: 8}
-	C.memcpy(&v[0], &value, 8)
+	unsafe {
+		C.memcpy(&v[0], &value, 8)
+	}
 	return v
-	// v := *byte(&value)
-	// return [ v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] ]
 }
 
 fn fixed64_packed_pack(values []u32) []byte {
@@ -426,7 +428,9 @@ fn unzigzag32(v u32) int {
 
 fn fixed32_unpack(buf []byte) u32 {
 	v := u32(0)
-	C.memcpy(&v, &buf[0], 4)
+	unsafe {
+		C.memcpy(&v, &buf[0], 4)
+	}
 	return v
 }
 
@@ -436,14 +440,18 @@ fn fixed32_unpack_packed(buf []byte) (int, []u32) {
 	len := bytes.len / 4
 	
 	ret := []u32{len: len}
-	C.memcpy(&ret.data, bytes.data, len)
+	unsafe {
+		C.memcpy(&ret.data, bytes.data, len)
+	}
 	
 	return i, ret
 }
 
 fn fixed64_unpack(buf []byte) u64 {
 	v := u64(0)
-	C.memcpy(&v, &buf[0], 8)
+	unsafe {
+		C.memcpy(&v, &buf[0], 8)
+	}
 	return v
 }
 
@@ -453,8 +461,9 @@ fn fixed64_unpack_packed(buf []byte) (int, []u64) {
 	len := bytes.len / 8
 	
 	ret := []u64{len: len}
-	C.memcpy(&ret.data, bytes.data, len)
-	
+	unsafe {
+		C.memcpy(&ret.data, bytes.data, len)
+	}
 	return i, ret
 }
 
