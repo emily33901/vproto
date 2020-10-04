@@ -137,12 +137,14 @@ pub struct Message {
 pub struct ServiceMethod {
 	name        string
 	arg_type    string
+	arg_is_stream bool
 	return_type string
+	return_is_stream bool
 }
 
 pub struct Service {
 	name    string
-	method  []&ServiceMethod
+	methods  []&ServiceMethod
 	options []&OptionField
 }
 

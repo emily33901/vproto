@@ -306,7 +306,11 @@ fn key_default_value(v_type string) string {
 		}
 
 		else {
-			return '${v_type}(0)'
+			if v_type == 'bool' {
+				return 'false'
+			} else {
+				return '${v_type}(0)'
+			}
 		}
 	}
 }
@@ -489,7 +493,12 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 						o.value.value
 					}
 
-					g.text.writeln(' = $value')
+					// Sigh here we need to not use a default value if it
+					// would be the same as the one that V would use anyway
+					// (e.g. false / 0ish values)
+					if o.value.value != 'false' && o.value.value != '0' {
+						g.text.writeln(' = $value')
+					}
 				}
 			}
 		}
@@ -545,7 +554,7 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 		field_unpack_text.writeln(unpack_text)
 	}
 
-	// TODO oneofs maps extensions and similar
+	// TODO oneofs extensions and similar
 
 	g.text.writeln('}')
 
@@ -617,8 +626,6 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	g.text.writeln('mut unpacked := ${m_full_name}_unpack(v)?')
 	g.text.writeln('return i, unpacked')
 	g.text.writeln('}')
-
-	// TODO oneof, maps and similar
 }
 
 pub fn (mut g Gen) gen_file_text(f &File) string {

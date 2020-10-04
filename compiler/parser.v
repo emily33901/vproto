@@ -500,7 +500,7 @@ fn (mut p Parser) consume_syntax() {
 	// syntax = "syntax" "=" quote "proto2" quote ";"
 
 	if p.next_full_ident() != 'syntax' { 
-		f := p.current_file() f.syntax = .proto2
+		mut f := p.current_file() f.syntax = .proto2
 		return 
 	}
 
@@ -521,9 +521,9 @@ fn (mut p Parser) consume_syntax() {
 	if p.consume_char() != `;` { p.report_error('Expected `;` in syntax statement') }
 
 	if proto_version == 'proto2' {
-		f := p.current_file() f.syntax = .proto2
+		mut f := p.current_file() f.syntax = .proto2
 	} else if proto_version == 'proto3' {
-		f := p.current_file() f.syntax = .proto3
+		mut f := p.current_file() f.syntax = .proto3
 	}
 }
 
@@ -564,7 +564,7 @@ fn (mut p Parser) consume_import() bool {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in import statement') }
 
-	f := p.current_file() f.imports << &Import{weak, public, package}
+	mut f := p.current_file() f.imports << &Import{weak, public, package}
 
 	return true
 }
@@ -595,7 +595,7 @@ fn (mut p Parser) consume_package() bool  {
 
 	if p.consume_char() != `;` { p.report_error('Expected `;` in package statement') }
 
-	f := p.current_file() f.package = ident
+	mut f := p.current_file() f.package = ident
 
 	return true
 }
@@ -1276,6 +1276,9 @@ fn (mut p Parser) consume_message() ?&Message {
 }
 
 fn (mut p Parser) consume_service() ?&Service {
+	// service = "service" serviceName "{" { option | rpc | emptyStatement } "}"
+	// rpc = "rpc" rpcName "(" [ "stream" ] messageType ")" "returns" "(" [ "stream" ] messageType ")" (( "{" {option | emptyStatement } "}" ) | ";")
+
 	if p.next_full_ident() != 'service' {
 		return none
 	}
@@ -1293,28 +1296,128 @@ fn (mut p Parser) consume_service() ?&Service {
 	if p.consume_char() != `{` { p.report_error('Expected `{` after service name') }
 	p.consume_whitespace()
 
-	// TODO actually consume the body properly
-	mut level := 1
+	mut options := []&OptionField{}
+	mut methods := []&ServiceMethod{}
 
 	for {
+		p.consume_whitespace()
+		
 		if p.end_of_file() { p.report_error('Reached end of file while parsing service definition') }
-		if p.next_char() == `{` {
-			level++
-		}
-		if p.next_char() == `}` { level-- }
 
-		if level == 0 {
+		if p.consume_empty_statement() {
+			continue
+		}
+		if o := p.consume_option() {
+			options << o
+			continue
+		}
+
+		if p.next_char() == `}` {
 			break
 		}
 
-		p.consume_char()
+		// consume rpc
+		if p.next_ident() != 'rpc' {
+			p.report_error('Expected "rpc" in service block')
+		}
+		p.consume_known_ident()
+
+		p.consume_whitespace()
+
+		service_name := p.consume_ident() or {
+			p.report_error('Expected service method name')
+			'' // appease compiler
+		}
+
+		p.consume_whitespace()
+
+		if p.consume_char() != `(` {
+			p.report_error('Expected "(" after service name')
+		}
+
+		p.consume_whitespace()
+
+		arg_is_stream := if p.next_ident() == "stream" { true } else { false }
+		if arg_is_stream { p.consume_known_ident() }
+
+		p.consume_whitespace()
+
+		arg_type := p.consume_full_ident() or {
+			p.report_error('Expected argument type name')
+			''  // appease compiler
+		}
+
+		p.consume_whitespace()
+
+		if p.consume_char() != `)` {
+			p.report_error('Expected ")" after service name')
+		}
+
+		p.consume_whitespace()
+
+		if p.next_ident() != 'returns' {
+			p.report_error('Expected "return" in service definition')
+		}
+		p.consume_known_ident()
+
+		p.consume_whitespace()
+
+		if p.consume_char() != `(` {
+			p.report_error('Expected "(" after service name')
+		}
+
+		p.consume_whitespace()
+
+		return_is_stream := if p.next_ident() == "stream" { true } else { false }
+		if return_is_stream { p.consume_known_ident() }
+
+		p.consume_whitespace()
+
+		return_type := p.consume_full_ident() or {
+			p.report_error('Expected argument type name')
+			''  // appease compiler
+		}
+
+		p.consume_whitespace()
+
+		if p.consume_char() != `)` {
+			p.report_error('Expected ")" after service name')
+		}
+
+		methods << &ServiceMethod {
+			service_name
+			arg_type,
+			arg_is_stream,
+			return_type,
+			return_is_stream,
+		}
+
+		p.consume_whitespace()
+
+		// TODO methnod options
+
+		mut level := 0
+
+		for {
+			if p.next_char() == `{` {
+				level++
+			}
+
+			if p.next_char() == `}` { level-- }
+
+			p.consume_char()
+
+			if level == 0 {
+				break
+			}
+		}
 	}
 
 	if p.consume_char() != `}` { p.report_error('Expected `}` at end of service block') }
 
 	p.consume_char()
 
-	return &Service{name: name}
+	return &Service{name: name, methods: methods}
 }
 
 fn (mut p Parser) consume_top_level_def() bool {
@@ -1325,19 +1428,19 @@ fn (mut p Parser) consume_top_level_def() bool {
 	mut consumed := false
 	
 	if m := p.consume_message() {
-		f := p.current_file() f.messages << m
+		mut f := p.current_file() f.messages << m
 		consumed = true
 	}
 	if e := p.consume_enum() {
-		f := p.current_file() f.enums << e
+		mut f := p.current_file() f.enums << e
 		consumed = true
 	}
 	if ex := p.consume_extend() {
-		f := p.current_file() f.extends << ex
+		mut f := p.current_file() f.extends << ex
 		consumed = true
 	}
 	if s := p.consume_service() {
-		f := p.current_file() f.services << s
+		mut f := p.current_file() f.services << s
 		consumed = true
 	}
 
@@ -1356,7 +1459,7 @@ fn (mut p Parser) consume_empty_statement() bool {
 	return false
 }
 
-fn (mut p Parser) parse_import(im &Import) {
+fn (mut p Parser) parse_import(mut im Import) {
 	// Try and find this imports real path
 	current_file_path := os.real_path(p.current_file().path).all_before_last(os.path_separator)
 	mut new_path := os.real_path(os.join_path(current_file_path, im.package))
@@ -1439,8 +1542,8 @@ fn (mut p Parser) parse_statements(new_file int, text string) {
 		p.consume_whitespace()
 
 		if p.consume_import() {
-			f := p.current_file()
-			p.parse_import(f.imports[f.imports.len-1])
+			mut f := p.current_file()
+			p.parse_import(mut f.imports[f.imports.len-1])
 
 			consumed_something = true 
 		}
@@ -1448,7 +1551,7 @@ fn (mut p Parser) parse_statements(new_file int, text string) {
 		
 		if o := p.consume_option() {
 			consumed_something = true
-			f := p.current_file() f.options << o
+			mut f := p.current_file() f.options << o
 		}
 
 		if p.consume_top_level_def() { consumed_something = true }
