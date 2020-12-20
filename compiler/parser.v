@@ -1566,7 +1566,7 @@ fn (mut p Parser) parse_statements(new_file int, text string) {
 	p.reset_state(saved_state)
 }
 
-pub fn (mut p Parser) parse_file(filename, module_override string) &File {
+pub fn (mut p Parser) parse_file(filename string, module_override string) &File {
 	if filename in p.file_inputs {
 		println('skipping $filename becuase it has already been parsed')
 		for f in p.files {
