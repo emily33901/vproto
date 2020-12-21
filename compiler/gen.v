@@ -248,13 +248,14 @@ fn (g &Gen) gen_field_pack_text(
 			// unpack text at this point is inside of a match statement checking tag numbers
 			// TODO make this into a oneliner again once match bug is fixed
 
-			unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 			if !is_ref_field {
-				unpack.writeln('res.$name = v')
+				unpack.writeln('i, res.$name = ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 			} else {
+				unpack.writeln('// [reference (should be optional)]')
+				unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 				unpack.writeln('res.$name = memdup(&v, int(sizeof($field_v_type_no_mod)))')
+				unpack.writeln('i = ii')
 			}
-			unpack.writeln('i = ii')
 			unpack.writeln('}')
 		}
  
