@@ -5,7 +5,7 @@ fn to_v_field_name(name string) string {
 }
 
 fn to_v_struct_name(name string) string {
-	mut new_name := name[0].str().to_upper() + name[1..]
+	mut new_name := name[0].ascii_str().to_upper() + name[1..]
 	// new_name = new_name.replace_each(['_', '', '.', '_'])
 
 	return new_name
@@ -53,11 +53,12 @@ fn escape_keyword(name string) string {
 fn type_to_typename(current_package string, type_table &TypeTable, context []string, t string) (string, TypeType) {
 	if t in valid_types {
 		idx := valid_types.index(t)
-		return valid_types_v[idx], if idx <= type_max_scalar_index {
+		tt := if idx <= type_max_scalar_index {
 			TypeType.scalar
-		} else { 
+		} else {
 			TypeType.other 
 		}
+		return valid_types_v[idx], tt
 	}
 
 	if found := type_table.lookup_type(context, t) {

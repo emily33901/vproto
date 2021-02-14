@@ -1,4 +1,5 @@
 module vproto
+
 // Helper functions for serialization
 // Most of these are adapted from the protobuf-c project
 // Some original comments have been left intact

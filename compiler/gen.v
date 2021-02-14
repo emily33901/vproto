@@ -230,16 +230,19 @@ fn (g &Gen) gen_field_pack_text(
 			if label == 'optional' {
 				// check whether the field is '0ish', if it is not
 				// then use its value
-				if field_typetype != .message {
-					pack.writeln('if o.$name != ${value_default_value(field_v_type, field_typetype)} {')
-				} else {
-					pack.writeln('if o.${name}.ne(${value_default_value(field_v_type, field_typetype)}) {')
-				}
+				pack.writeln('if o.$name != ${value_default_value(field_v_type, field_typetype)} {')
+
+				// if field_typetype != .message {
+				// } else {
+				// 	pack.writeln('if o.${name}.ne(${value_default_value(field_v_type, field_typetype)}) {')
+				// }
 
 				// unpack.writeln('res.has_$raw_name = true')
 			}
-
-			pack.writeln('res << ${pack_inside}(o.$name, $number)')
+			
+			pack.writeln('$name := ${pack_inside}(o.$name, $number)')
+			pack.writeln('res << $name')
+			pack.writeln('unsafe { ${name}.free() }')
 
 			if label == 'optional' {
 				pack.writeln('}')
@@ -358,12 +361,13 @@ fn (g &Gen) gen_map_field_pack_text(
 
 	unpack.writeln(
 		'$number {
-			ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type)
+			ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type)?
 			mut k := ${key_default_value(key_v_type)}
 			mut v := ${value_default_value(value_v_type, value_type_type)}
 			mut bytes_offset := 0
 			for j := 0; j < 2; j++ {
 				map_tag_wiretype := vproto.unpack_tag_wire_type(bytes[bytes_offset..]) or { return error(\'malformed protobuf (couldnt parse tag & wire type)\') }
+				bytes_offset += map_tag_wiretype.consumed
 				match map_tag_wiretype.tag {
 					1 {
 						map_ii, kk := ${key_unpack_inside}(bytes[bytes_offset..],  map_tag_wiretype.wire_type)?
@@ -416,7 +420,6 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 	mut field_pack_text := strings.new_builder(100)
 	mut field_unpack_text := strings.new_builder(100)
-	mut field_equal_text := strings.new_builder(100)
 
 	field_pack_text.writeln('pub fn (o &$m_name) pack() []byte {')
 	field_pack_text.writeln('${pack_unpack_mut}res := []byte{}') // TODO allocate correct size statically
@@ -425,11 +428,6 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	// Use the internal new_xxx function here so that we get the default values
 	// if they arent sent in the protobuf
 	field_unpack_text.writeln('${pack_unpack_mut}res := ${vproto_ifp}new_${m_full_name}()')
-
-	field_equal_text.writeln('
-	[inline]
-	pub fn (a $m_name) eq(b $m_name) bool {
-		return true')
 
 	if has_fields {
 		field_unpack_text.writeln('mut total := 0
@@ -460,6 +458,7 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 		if field_type == m_name && field.label != 'repeated' {
 			// Circular reference!
+			// TODO: should really be using optional here
 			field_type = '&$field_type'
 		}
 
@@ -517,12 +516,6 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 		field_pack_text.writeln(pack_text)
 		field_unpack_text.writeln(unpack_text)
-
-		if field_type_type == .message {
-			field_equal_text.writeln('&& a.${name}.eq(b.$name)')
-		} else {
-			field_equal_text.writeln('&& a.${name} == b.$name')
-		}
 	}
 
 	for map_field in m.map_fields {
@@ -577,32 +570,8 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	field_unpack_text.writeln('return res')
 	field_unpack_text.writeln('}')
 
-	field_equal_text.writeln('}
-	[inline]
-	pub fn (a $m_name) ne(b $m_name) bool {
-		return !a.eq(b)
-	}
-
-	[inline]
-	pub fn (a []$m_name) eq(b []$m_name) bool {
-		if a.len != b.len { return false }
-		for i, _ in a {
-			if a[i].ne(b[i]) {
-				return false
-			}
-		}
-		return true
-	}
-
-	[inline]
-	pub fn (a []$m_name) ne(b []$m_name) bool {
-		return !a.eq(b)
-	}
-	')
-
 	g.text.writeln(field_pack_text.str())
 	g.text.writeln(field_unpack_text.str())
-	g.text.writeln(field_equal_text.str())
 
 	// pack and unpack wrappers for when its called as a submessage
 

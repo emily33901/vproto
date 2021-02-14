@@ -7,8 +7,6 @@ pub enum ProtoSyntax {
 
 pub struct File {
 mut:
-
-
 	syntax ProtoSyntax // syntax of the file
 
 	package string

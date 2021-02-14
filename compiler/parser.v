@@ -2,7 +2,7 @@ module compiler
 
 import os
 
-// Saved state is used when importing files and
+// SavedState is used when importing files and
 // allows the parser to keep track of where it was
 // before importing occured
 // type_table and type_context are not needed becuase
@@ -98,7 +98,7 @@ fn (mut p Parser) consume_chars(count int) string {
 	mut ret := ""
 
 	for i := 0; i < count; i++ {
-		ret += p.consume_char().str()
+		ret += p.consume_char().ascii_str()
 	}
 
 	return ret
@@ -159,7 +159,7 @@ fn (mut p Parser) consume_string() ?string {
 	
 	for {
 		if !p.end_of_file() && p.next_char() != `"` {
-			text += p.consume_char().str()
+			text += p.consume_char().ascii_str()
 		} else if p.next_chars(2) == '\\"' {
 			p.consume_chars(2)
 			text += '"'
@@ -185,7 +185,7 @@ fn (p &Parser) next_ident() string {
 
 		c := text[text.len-1]
 
-		if (1 > 0 && c.is_digit()) || c.is_letter() || c == `_` {
+		if (i > 0 && c.is_digit()) || c.is_letter() || c == `_` {
 			continue
 		}
 	
@@ -225,7 +225,7 @@ fn (mut p Parser) consume_ident() ?string {
 		c := p.next_char()
 
 		if (!first && c.is_digit()) || c.is_letter() || c == `_` {
-			text += p.consume_char().str()
+			text += p.consume_char().ascii_str()
 			first = false
 		} else if first && c.is_digit() {
 			p.report_error('Expected letter or `_` for first character in ident not number')
@@ -250,7 +250,7 @@ fn (mut p Parser) consume_full_ident() ?string {
 	mut text := ''
 
 	if p.next_char() == `.` {
-		text += p.consume_char().str()
+		text += p.consume_char().ascii_str()
 	}
 
 	for {
@@ -261,7 +261,7 @@ fn (mut p Parser) consume_full_ident() ?string {
 		text += ident
 
 		if p.next_char() == `.` {
-			text += p.consume_char().str()
+			text += p.consume_char().ascii_str()
 		} else { break }
 	}
 
@@ -276,7 +276,7 @@ fn (mut p Parser) consume_decimals() ?string {
 		if p.end_of_file() { break }
 
 		if p.next_char().is_digit() {
-			lit += p.consume_char().str()
+			lit += p.consume_char().ascii_str()
 		} else {
 			break
 		}
@@ -294,13 +294,13 @@ fn (mut p Parser) consume_decimal() ?string {
 		return none
 	}
 
-	mut lit := p.consume_char().str()
+	mut lit := p.consume_char().ascii_str()
 
 	for {
 		if p.end_of_file() { break }
 
 		if p.next_char().is_digit() {
-			lit += p.consume_char().str()
+			lit += p.consume_char().ascii_str()
 		} else {
 			break
 		}
@@ -321,7 +321,7 @@ fn (mut p Parser) consume_octal() ?string {
 		if p.end_of_file() { break }
 
 		if p.next_char() >= `0` && p.next_char() <= `7` {
-			lit += p.consume_char().str()
+			lit += p.consume_char().ascii_str()
 		} else {
 			break
 		}
@@ -342,7 +342,7 @@ fn (mut p Parser) consume_hex() ?string {
 		if p.end_of_file() { break }
 
 		if p.next_char().is_hex_digit()  {
-			lit += p.consume_char().str()
+			lit += p.consume_char().ascii_str()
 		} else {
 			break
 		}
@@ -381,7 +381,7 @@ fn (mut p Parser) consume_numeric_constant() ?NumericConstant {
 		if p.next_chars(2) == '0.' {
 			p.consume_char()
 		} else if p.next_char() == `.` {
-			p.consume_char().str()
+			p.consume_char().ascii_str()
 		}
 
 		// not decimal or float
@@ -392,7 +392,7 @@ fn (mut p Parser) consume_numeric_constant() ?NumericConstant {
 	// decimals  = decimalDigit { decimalDigit }
 	// exponent  = ( "e" | "E" ) [ "+" | "-" ] decimals 
 
-	if p.next_char() != `.` && p.next_char().str().to_lower() != 'e' {
+	if p.next_char() != `.` && p.next_char().ascii_str().to_lower() != 'e' {
 		return NumericConstant{lit, false}
 	}
 
@@ -407,12 +407,12 @@ fn (mut p Parser) consume_numeric_constant() ?NumericConstant {
 
 	if p.next_char() == `.` {
 		// consume the "."
-		lit += p.consume_char().str()
+		lit += p.consume_char().ascii_str()
 
 		// we expect decimals after a "."
 		remainder := p.consume_decimals() or { 
 			// unless the next character is an `e`
-			if p.next_char().str().to_lower() != 'e' {
+			if p.next_char().ascii_str().to_lower() != 'e' {
 				p.report_error('Expected decimal digits or exponent after `.` in floating point literal')
 			}
 
@@ -424,11 +424,11 @@ fn (mut p Parser) consume_numeric_constant() ?NumericConstant {
 
 	// Now that we have to check for an exp
 
-	if p.next_char().str().to_lower() == 'e' {
-		lit += p.consume_char().str()
+	if p.next_char().ascii_str().to_lower() == 'e' {
+		lit += p.consume_char().ascii_str()
 
 		if p.next_char() == `+` || p.next_char() == `-` {
-			lit += p.consume_char().str()
+			lit += p.consume_char().ascii_str()
 		}
 
 		remainder := p.consume_decimals() or { 
@@ -472,7 +472,7 @@ fn (mut p Parser) consume_lit() ?Literal {
 		mut lit_base := ''
 
 		if p.next_char() == `+` || p.next_char() == `-` {
-			lit_base += p.consume_char().str()
+			lit_base += p.consume_char().ascii_str()
 		}
 
 		if lit := p.consume_numeric_constant() {
@@ -640,7 +640,7 @@ fn (mut p Parser) consume_option_ident() ?string {
 	mut ident := ''
 	
 	if p.next_char() == `(` {
-		ident += p.consume_char().str()
+		ident += p.consume_char().ascii_str()
 
 		p.consume_whitespace()
 
@@ -663,7 +663,7 @@ fn (mut p Parser) consume_option_ident() ?string {
 	}
 
 	if p.next_char() == `.` {
-		ident += p.consume_char().str()
+		ident += p.consume_char().ascii_str()
 
 		other := p.consume_full_ident() or { 
 			p.report_error('Expected full ident after `.` in option identifier') 
@@ -707,7 +707,7 @@ fn (mut p Parser) consume_field_options() []&FieldOption {
 		p.consume_whitespace()
 
 		if p.next_char() != `]` && p.next_char() != `,` {
-			p.report_error('Expected `]` or `,` after field option (got ${p.next_char().str()})')
+			p.report_error('Expected `]` or `,` after field option (got ${p.next_char().ascii_str()})')
 		}
 
 		if p.next_char() == `,` { p.consume_char() }
@@ -755,7 +755,7 @@ fn (mut p Parser) consume_enum_field() ?&EnumField {
 
 	p.consume_whitespace()
 	c := p.consume_char()
-	if c != `;` { p.report_error('Expected `;` after enum field (got ${c.str()})') }
+	if c != `;` { p.report_error('Expected `;` after enum field (got ${c.ascii_str()})') }
 
 	return &EnumField{ident, lit, options}
 }
@@ -920,7 +920,7 @@ fn (mut p Parser) consume_field(is_oneof_field bool) ?&Field {
 
 	p.consume_whitespace()
 	c := p.consume_char()
-	if c != `;` { p.report_error('Expected `;` after field (got ${c.str()})') }
+	if c != `;` { p.report_error('Expected `;` after field (got ${c.ascii_str()})') }
 
 	return &Field{label, 
 		ident, 
@@ -1070,7 +1070,7 @@ fn (mut p Parser) consume_oneof() ?&Oneof {
 
 	c := p.consume_char()
 
-	if c != `}` { p.report_error('expected `}` after oneof body (got `${c.str()}`)') }
+	if c != `}` { p.report_error('expected `}` after oneof body (got `${c.ascii_str()}`)') }
 
 	return &Oneof{ident, fields}
 }

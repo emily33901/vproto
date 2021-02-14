@@ -3,20 +3,23 @@ module vproto_test
 
 import emily33901.vproto
 
-pub struct PersonPhoneNumberComment {
+pub struct PersonPhoneNumber_Comment {
 mut:
 	unknown_fields []vproto.UnknownField
 pub mut:
 	comment        string
 }
 
-pub fn (o &PersonPhoneNumberComment) pack() []byte {
+pub fn (o &PersonPhoneNumber_Comment) pack() []byte {
 	mut res := []byte{}
-	res << vproto.pack_string_field(o.comment, 1)
+	comment := vproto.pack_string_field(o.comment, 1)
+	res << comment
+	unsafe {comment.free()}
 	return res
 }
 
-pub fn (mut res PersonPhoneNumberComment) unpack(buf []byte) ? {
+pub fn personphonenumber_comment_unpack(buf []byte) ?PersonPhoneNumber_Comment {
+	mut res := zzz_vproto_internal_new_personphonenumber_comment()
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -27,7 +30,7 @@ pub fn (mut res PersonPhoneNumberComment) unpack(buf []byte) ? {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type) ?
 				res.comment = v
 				i = ii
 			}
@@ -46,47 +49,83 @@ pub fn (mut res PersonPhoneNumberComment) unpack(buf []byte) ? {
 	return res
 }
 
-// FOR INTERNAL USE ONLY
-pub fn new_personphonenumbercomment() PersonPhoneNumberComment {
-	return PersonPhoneNumberComment{}
+[inline]
+pub fn (a PersonPhoneNumber_Comment) eq(b PersonPhoneNumber_Comment) bool {
+	return true && a.comment == b.comment
+}
+
+[inline]
+pub fn (a PersonPhoneNumber_Comment) ne(b PersonPhoneNumber_Comment) bool {
+	return !a.eq(b)
+}
+
+[inline]
+pub fn (a []PersonPhoneNumber_Comment) eq(b []PersonPhoneNumber_Comment) bool {
+	if a.len != b.len {
+		return false
+	}
+	for i, _ in a {
+		if a[i].ne(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+[inline]
+pub fn (a []PersonPhoneNumber_Comment) ne(b []PersonPhoneNumber_Comment) bool {
+	return !a.eq(b)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn pack_personphonenumbercomment(o PersonPhoneNumberComment, num u32) []byte {
+[inline]
+pub fn zzz_vproto_internal_new_personphonenumber_comment() PersonPhoneNumber_Comment {
+	return PersonPhoneNumber_Comment{}
+}
+
+// FOR INTERNAL USE ONLY
+[inline]
+pub fn zzz_vproto_internal_pack_personphonenumber_comment(o PersonPhoneNumber_Comment, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_personphonenumbercomment(buf []byte, tag_wiretype vproto.WireType) ?(int, PersonPhoneNumberComment) {
-	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := PersonPhoneNumberComment{}.unpack(v)?
+[inline]
+pub fn zzz_vproto_internal_unpack_personphonenumber_comment(buf []byte, tag_wiretype vproto.WireType) ?(int, PersonPhoneNumber_Comment) {
+	i, v := vproto.unpack_message_field(buf, tag_wiretype) ?
+	mut unpacked := personphonenumber_comment_unpack(v) ?
 	return i, unpacked
 }
 
-pub struct PersonPhoneNumber {
+pub struct Person_PhoneNumber {
 mut:
 	unknown_fields []vproto.UnknownField
 pub mut:
 	number         string
-	type           PersonPhoneType
-	has_type       bool
-	comment        PersonPhoneNumberComment
-	has_comment    bool
+	@type          Person_PhoneType = .home
+	comment        PersonPhoneNumber_Comment
 }
 
-pub fn (o &PersonPhoneNumber) pack() []byte {
+pub fn (o &Person_PhoneNumber) pack() []byte {
 	mut res := []byte{}
-	res << vproto.pack_string_field(o.number, 1)
-	if o.has_type {
-		res << pack_personphonetype(o.type, 2)
+	number := vproto.pack_string_field(o.number, 1)
+	res << number
+	unsafe {number.free()}
+	if o.@type != zzz_vproto_internal_new_person_phonetype() {
+		@type := zzz_vproto_internal_pack_person_phonetype(o.@type, 2)
+		res << @type
+		unsafe {@type.free()}
 	}
-	if o.has_comment {
-		res << pack_personphonenumbercomment(o.comment, 3)
+	if o.comment.ne(zzz_vproto_internal_new_personphonenumber_comment()) {
+		comment := zzz_vproto_internal_pack_personphonenumber_comment(o.comment, 3)
+		res << comment
+		unsafe {comment.free()}
 	}
 	return res
 }
 
-pub fn (mut res PersonPhoneNumber) unpack(buf []byte) ? {
+pub fn person_phonenumber_unpack(buf []byte) ?Person_PhoneNumber {
+	mut res := zzz_vproto_internal_new_person_phonenumber()
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -97,19 +136,18 @@ pub fn (mut res PersonPhoneNumber) unpack(buf []byte) ? {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type) ?
 				res.number = v
 				i = ii
 			}
 			2 {
-				res.has_type = true
-				ii, v := unpack_personphonetype(cur_buf, tag_wiretype.wire_type)?
-				res.type = v
+				ii, v := zzz_vproto_internal_unpack_person_phonetype(cur_buf, tag_wiretype.wire_type) ?
+				res.@type = v
 				i = ii
 			}
 			3 {
-				res.has_comment = true
-				ii, v := unpack_personphonenumbercomment(cur_buf, tag_wiretype.wire_type)?
+				ii, v := zzz_vproto_internal_unpack_personphonenumber_comment(cur_buf,
+					tag_wiretype.wire_type) ?
 				res.comment = v
 				i = ii
 			}
@@ -128,39 +166,102 @@ pub fn (mut res PersonPhoneNumber) unpack(buf []byte) ? {
 	return res
 }
 
-// FOR INTERNAL USE ONLY
-pub fn new_personphonenumber() PersonPhoneNumber {
-	return PersonPhoneNumber{}
+[inline]
+pub fn (a Person_PhoneNumber) eq(b Person_PhoneNumber) bool {
+	return true && a.number == b.number && a.@type == b.@type && a.comment.eq(b.comment)
+}
+
+[inline]
+pub fn (a Person_PhoneNumber) ne(b Person_PhoneNumber) bool {
+	return !a.eq(b)
+}
+
+[inline]
+pub fn (a []Person_PhoneNumber) eq(b []Person_PhoneNumber) bool {
+	if a.len != b.len {
+		return false
+	}
+	for i, _ in a {
+		if a[i].ne(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+[inline]
+pub fn (a []Person_PhoneNumber) ne(b []Person_PhoneNumber) bool {
+	return !a.eq(b)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn pack_personphonenumber(o PersonPhoneNumber, num u32) []byte {
+[inline]
+pub fn zzz_vproto_internal_new_person_phonenumber() Person_PhoneNumber {
+	return Person_PhoneNumber{}
+}
+
+// FOR INTERNAL USE ONLY
+[inline]
+pub fn zzz_vproto_internal_pack_person_phonenumber(o Person_PhoneNumber, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_personphonenumber(buf []byte, tag_wiretype vproto.WireType) ?(int, PersonPhoneNumber) {
-	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := PersonPhoneNumber{}.unpack(v)?
+[inline]
+pub fn zzz_vproto_internal_unpack_person_phonenumber(buf []byte, tag_wiretype vproto.WireType) ?(int, Person_PhoneNumber) {
+	i, v := vproto.unpack_message_field(buf, tag_wiretype) ?
+	mut unpacked := person_phonenumber_unpack(v) ?
 	return i, unpacked
 }
 
 [_allow_multiple_values]
-enum PersonPhoneType {
+enum Person_PhoneType {
 	mobile = 0
 	home = 1
 	work = 2
 }
 
 // FOR INTERNAL USE ONLY
-fn pack_personphonetype(e PersonPhoneType, num u32) []byte {
+[inline]
+fn zzz_vproto_internal_new_person_phonetype() Person_PhoneType {
+	return .mobile
+}
+
+// FOR INTERNAL USE ONLY
+[inline]
+fn zzz_vproto_internal_pack_person_phonetype(e Person_PhoneType, num u32) []byte {
 	return vproto.pack_int32_field(int(e), num)
 }
 
 // FOR INTERNAL USE ONLY
-fn unpack_personphonetype(buf []byte, tag_wiretype vproto.WireType) (int, PersonPhoneType) {
-	i, v := vproto.unpack_int32_field(buf, tag_wiretype)
-	return i, PersonPhoneType(v)
+[inline]
+fn zzz_vproto_internal_pack_person_phonetype_packed(e []Person_PhoneType, num u32) []byte {
+	x := array{
+		data: e.data
+		len: e.len
+		element_size: e.element_size
+		cap: e.cap
+	}
+	return vproto.pack_int32_field_packed(x, num)
+}
+
+// FOR INTERNAL USE ONLY
+[inline]
+fn zzz_vproto_internal_unpack_person_phonetype(buf []byte, tag_wiretype vproto.WireType) ?(int, Person_PhoneType) {
+	i, v := vproto.unpack_int32_field(buf, tag_wiretype) ?
+	return i, Person_PhoneType(v)
+}
+
+// FOR INTERNAL USE ONLY
+[inline]
+fn zzz_vproto_internal_unpack_person_phonetype_packed(buf []byte, tag_wiretype vproto.WireType) ?(int, []Person_PhoneType) {
+	i, v := vproto.unpack_int32_field_packed(buf, tag_wiretype) ?
+	return i, array{
+		data: v.data
+		len: v.len
+		cap: v.cap
+		element_size: v.element_size
+	}
 }
 
 pub struct Person {
@@ -170,25 +271,31 @@ pub mut:
 	name           string
 	id             int
 	email          string
-	has_email      bool
-	phone          []PersonPhoneNumber
+	phone          []Person_PhoneNumber
 }
 
 pub fn (o &Person) pack() []byte {
 	mut res := []byte{}
-	res << vproto.pack_string_field(o.name, 1)
-	res << vproto.pack_int32_field(o.id, 2)
-	if o.has_email {
-		res << vproto.pack_string_field(o.email, 3)
+	name := vproto.pack_string_field(o.name, 1)
+	res << name
+	unsafe {name.free()}
+	id := vproto.pack_int32_field(o.id, 2)
+	res << id
+	unsafe {id.free()}
+	if o.email != '' {
+		email := vproto.pack_string_field(o.email, 3)
+		res << email
+		unsafe {email.free()}
 	}
 	// [packed=false]
 	for _, x in o.phone {
-		res << pack_personphonenumber(x, 4)
+		res << zzz_vproto_internal_pack_person_phonenumber(x, 4)
 	}
 	return res
 }
 
-pub fn (mut res Person) unpack(buf []byte) ? {
+pub fn person_unpack(buf []byte) ?Person {
+	mut res := zzz_vproto_internal_new_person()
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -199,24 +306,23 @@ pub fn (mut res Person) unpack(buf []byte) ? {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type) ?
 				res.name = v
 				i = ii
 			}
 			2 {
-				ii, v := vproto.unpack_int32_field(cur_buf, tag_wiretype.wire_type)?
+				ii, v := vproto.unpack_int32_field(cur_buf, tag_wiretype.wire_type) ?
 				res.id = v
 				i = ii
 			}
 			3 {
-				res.has_email = true
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type) ?
 				res.email = v
 				i = ii
 			}
 			4 {
 				// [packed=false]
-				ii, v := unpack_personphonenumber(cur_buf, tag_wiretype.wire_type)?
+				ii, v := zzz_vproto_internal_unpack_person_phonenumber(cur_buf, tag_wiretype.wire_type) ?
 				res.phone << v
 				i = ii
 			}
@@ -235,20 +341,51 @@ pub fn (mut res Person) unpack(buf []byte) ? {
 	return res
 }
 
+[inline]
+pub fn (a Person) eq(b Person) bool {
+	return true && a.name == b.name && a.id == b.id && a.email == b.email && a.phone.eq(b.phone)
+}
+
+[inline]
+pub fn (a Person) ne(b Person) bool {
+	return !a.eq(b)
+}
+
+[inline]
+pub fn (a []Person) eq(b []Person) bool {
+	if a.len != b.len {
+		return false
+	}
+	for i, _ in a {
+		if a[i].ne(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+[inline]
+pub fn (a []Person) ne(b []Person) bool {
+	return !a.eq(b)
+}
+
 // FOR INTERNAL USE ONLY
-pub fn new_person() Person {
+[inline]
+pub fn zzz_vproto_internal_new_person() Person {
 	return Person{}
 }
 
 // FOR INTERNAL USE ONLY
-pub fn pack_person(o Person, num u32) []byte {
+[inline]
+pub fn zzz_vproto_internal_pack_person(o Person, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_person(buf []byte, tag_wiretype vproto.WireType) ?(int, Person) {
-	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := Person{}.unpack(v)?
+[inline]
+pub fn zzz_vproto_internal_unpack_person(buf []byte, tag_wiretype vproto.WireType) ?(int, Person) {
+	i, v := vproto.unpack_message_field(buf, tag_wiretype) ?
+	mut unpacked := person_unpack(v) ?
 	return i, unpacked
 }
 
@@ -257,18 +394,20 @@ mut:
 	unknown_fields []vproto.UnknownField
 pub mut:
 	person         Person
-	has_person     bool
 }
 
 pub fn (o &LookupResult) pack() []byte {
 	mut res := []byte{}
-	if o.has_person {
-		res << pack_person(o.person, 1)
+	if o.person.ne(zzz_vproto_internal_new_person()) {
+		person := zzz_vproto_internal_pack_person(o.person, 1)
+		res << person
+		unsafe {person.free()}
 	}
 	return res
 }
 
-pub fn (mut res LookupResult) unpack(buf []byte) ? {
+pub fn lookupresult_unpack(buf []byte) ?LookupResult {
+	mut res := zzz_vproto_internal_new_lookupresult()
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -279,8 +418,7 @@ pub fn (mut res LookupResult) unpack(buf []byte) ? {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				res.has_person = true
-				ii, v := unpack_person(cur_buf, tag_wiretype.wire_type)?
+				ii, v := zzz_vproto_internal_unpack_person(cur_buf, tag_wiretype.wire_type) ?
 				res.person = v
 				i = ii
 			}
@@ -299,20 +437,51 @@ pub fn (mut res LookupResult) unpack(buf []byte) ? {
 	return res
 }
 
+[inline]
+pub fn (a LookupResult) eq(b LookupResult) bool {
+	return true && a.person.eq(b.person)
+}
+
+[inline]
+pub fn (a LookupResult) ne(b LookupResult) bool {
+	return !a.eq(b)
+}
+
+[inline]
+pub fn (a []LookupResult) eq(b []LookupResult) bool {
+	if a.len != b.len {
+		return false
+	}
+	for i, _ in a {
+		if a[i].ne(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+[inline]
+pub fn (a []LookupResult) ne(b []LookupResult) bool {
+	return !a.eq(b)
+}
+
 // FOR INTERNAL USE ONLY
-pub fn new_lookupresult() LookupResult {
+[inline]
+pub fn zzz_vproto_internal_new_lookupresult() LookupResult {
 	return LookupResult{}
 }
 
 // FOR INTERNAL USE ONLY
-pub fn pack_lookupresult(o LookupResult, num u32) []byte {
+[inline]
+pub fn zzz_vproto_internal_pack_lookupresult(o LookupResult, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_lookupresult(buf []byte, tag_wiretype vproto.WireType) ?(int, LookupResult) {
-	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := LookupResult{}.unpack(v)?
+[inline]
+pub fn zzz_vproto_internal_unpack_lookupresult(buf []byte, tag_wiretype vproto.WireType) ?(int, LookupResult) {
+	i, v := vproto.unpack_message_field(buf, tag_wiretype) ?
+	mut unpacked := lookupresult_unpack(v) ?
 	return i, unpacked
 }
 
@@ -321,18 +490,20 @@ mut:
 	unknown_fields []vproto.UnknownField
 pub mut:
 	name           string
-	has_name       bool
 }
 
 pub fn (o &Name) pack() []byte {
 	mut res := []byte{}
-	if o.has_name {
-		res << vproto.pack_string_field(o.name, 1)
+	if o.name != '' {
+		name := vproto.pack_string_field(o.name, 1)
+		res << name
+		unsafe {name.free()}
 	}
 	return res
 }
 
-pub fn (mut res Name) unpack(buf []byte) ? {
+pub fn name_unpack(buf []byte) ?Name {
+	mut res := zzz_vproto_internal_new_name()
 	mut total := 0
 	for total < buf.len {
 		mut i := 0
@@ -343,8 +514,7 @@ pub fn (mut res Name) unpack(buf []byte) ? {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				res.has_name = true
-				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type)?
+				ii, v := vproto.unpack_string_field(cur_buf, tag_wiretype.wire_type) ?
 				res.name = v
 				i = ii
 			}
@@ -363,19 +533,50 @@ pub fn (mut res Name) unpack(buf []byte) ? {
 	return res
 }
 
+[inline]
+pub fn (a Name) eq(b Name) bool {
+	return true && a.name == b.name
+}
+
+[inline]
+pub fn (a Name) ne(b Name) bool {
+	return !a.eq(b)
+}
+
+[inline]
+pub fn (a []Name) eq(b []Name) bool {
+	if a.len != b.len {
+		return false
+	}
+	for i, _ in a {
+		if a[i].ne(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+[inline]
+pub fn (a []Name) ne(b []Name) bool {
+	return !a.eq(b)
+}
+
 // FOR INTERNAL USE ONLY
-pub fn new_name() Name {
+[inline]
+pub fn zzz_vproto_internal_new_name() Name {
 	return Name{}
 }
 
 // FOR INTERNAL USE ONLY
-pub fn pack_name(o Name, num u32) []byte {
+[inline]
+pub fn zzz_vproto_internal_pack_name(o Name, num u32) []byte {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
-pub fn unpack_name(buf []byte, tag_wiretype vproto.WireType) ?(int, Name) {
-	i, v := vproto.unpack_message_field(buf, tag_wiretype)
-	unpacked := Name{}.unpack(v)?
+[inline]
+pub fn zzz_vproto_internal_unpack_name(buf []byte, tag_wiretype vproto.WireType) ?(int, Name) {
+	i, v := vproto.unpack_message_field(buf, tag_wiretype) ?
+	mut unpacked := name_unpack(v) ?
 	return i, unpacked
 }

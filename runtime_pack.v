@@ -333,7 +333,7 @@ pub fn unpack_bytes_field(buf []byte, wire_type WireType) ?(int,[]byte) {
 }
 
 pub fn unpack_message_field(buf []byte, wire_type WireType) ?(int,[]byte) {
-	return unpack_bytes_field(buf, wire_type)?
+	return unpack_bytes_field(buf, wire_type)
 }
 
 // When unpacking this is used when we find a field where we dont
