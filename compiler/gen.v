@@ -209,10 +209,10 @@ fn (g &Gen) type_pack_name(pack_or_unpack string, field_proto_type string, field
 }
 
 fn (g &Gen) gen_field_pack_text(
-	label, field_proto_type, field_v_type string, 
+	label string, field_proto_type string, field_v_type string, 
 	field_typetype TypeType, 
-	name, raw_name, number string, 
-	is_packed, is_ref_field bool
+	name string, raw_name string, number string, 
+	is_packed bool, is_ref_field bool
 ) (string, string) {
 	mut pack := strings.new_builder(100)
 	mut unpack := strings.new_builder(100)
@@ -251,13 +251,14 @@ fn (g &Gen) gen_field_pack_text(
 			// unpack text at this point is inside of a match statement checking tag numbers
 			// TODO make this into a oneliner again once match bug is fixed
 
-			unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 			if !is_ref_field {
-				unpack.writeln('res.$name = v')
+				unpack.writeln('i, res.$name = ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 			} else {
+				unpack.writeln('// [reference (should be optional)]')
+				unpack.writeln('ii, v := ${unpack_inside}(cur_buf, tag_wiretype.wire_type)?')
 				unpack.writeln('res.$name = memdup(&v, int(sizeof($field_v_type_no_mod)))')
+				unpack.writeln('i = ii')
 			}
-			unpack.writeln('i = ii')
 			unpack.writeln('}')
 		}
  
@@ -331,9 +332,9 @@ fn value_default_value(v_type string, type_type TypeType) string {
 }
 
 fn (g &Gen) gen_map_field_pack_text(
-	key_proto_type, key_v_type, value_proto_type, value_v_type string,
+	key_proto_type string, key_v_type string, value_proto_type string, value_v_type string,
 	value_type_type TypeType, 
-	name, number string
+	name string, number string
 ) (string, string){
 	// TODO this isnt ideal
 
@@ -363,6 +364,7 @@ fn (g &Gen) gen_map_field_pack_text(
 		'$number {
 			ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type)?
 			mut k := ${key_default_value(key_v_type)}
+
 			mut v := ${value_default_value(value_v_type, value_type_type)}
 			mut bytes_offset := 0
 			for j := 0; j < 2; j++ {

@@ -15,7 +15,7 @@ pub struct Type {
 	file &File [skip] // where this type is from
 }
 
-pub fn new_type(context []string, name string, is_enum, is_message bool, file &File) &Type {
+pub fn new_type(context []string, name string, is_enum bool, is_message bool, file &File) &Type {
 	mut full_name_pieces := []string{}
 	mut context_no_pkg := []string{}
 	// TODO cleanup when vlang #5041 is fixed
@@ -154,7 +154,7 @@ pub fn (t &TypeTable) lookup_message(context []string, name string) ?&Message {
 }
 
 // simplify context one by removing context2
-pub fn simplify_type_context(context1, context2 []string) []string {
+pub fn simplify_type_context(context1 []string, context2 []string) []string {
 	scontext1 := context1.join('.')
 	scontext2 := context2.join('.')
 
