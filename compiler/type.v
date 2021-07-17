@@ -43,7 +43,7 @@ pub fn new_type(context []string, name string, is_enum bool, is_message bool, fi
 
 	assert (is_enum || is_message) && !(is_enum && is_message)
 
-	return &Type{name, 
+	return unsafe { &Type{name, 
 		full_name,
 		full_name_no_pkg, 
 		context.clone(), 
@@ -51,7 +51,7 @@ pub fn new_type(context []string, name string, is_enum bool, is_message bool, fi
 		file.package
 		is_enum, 
 		is_message, 
-		file}
+		file} }
 }
 
 pub struct TypeTable {
@@ -76,14 +76,14 @@ pub fn (t TypeTable) str() string {
 
 pub fn (mut table  TypeTable) add_message(t &Type, m &Message) {
 	// TODO make sure that type isnt already in table
-	table.table[t.full_name] = t
-	table.messages[t.full_name] = m
+	table.table[t.full_name] = unsafe { t }
+	table.messages[t.full_name] = unsafe { m }
 }
 
 pub fn (mut table  TypeTable) add_enum(t &Type, e &Enum) {
 	// TODO make sure that type isnt already in table
-	table.table[t.full_name] = t
-	table.enums[t.full_name] = e
+	table.table[t.full_name] = unsafe { t }
+	table.enums[t.full_name] = unsafe { e }
 }
 
 pub struct FoundType {

@@ -3,11 +3,10 @@ module main
 import flag
 import os
 
-import v.table
+import v.ast
 import v.parser
 import v.pref
 import v.fmt
-import v.ast
 
 import compiler
 
@@ -52,14 +51,14 @@ fn parse_args() Args {
 }
 
 fn format_file(path string) {
-	table := table.new_table()
+	table := ast.new_table()
 	ast_file := parser.parse_file(path, table, .parse_comments, &pref.Preferences{is_fmt: true}, &ast.Scope{
 		parent: 0
 	})
 
-	result := fmt.fmt(ast_file, table, false)
+	result := fmt.fmt(ast_file, table, &pref.Preferences{is_fmt: true}, false)
 
-	os.write_file(path, result)
+	os.write_file(path, result) or { panic(err) }
 }
 
 fn main() {
@@ -71,7 +70,7 @@ fn main() {
 	}
 
 	if !os.is_dir(args.out_folder) {
-		os.mkdir(args.out_folder)
+		os.mkdir(args.out_folder) or { panic(err) }
 	}
 
 	mut p := compiler.new_parser(args.quiet, args.imports)
@@ -90,6 +89,6 @@ fn main() {
 
 	path := os.join_path(os.real_path(args.out_folder), filename)
 
-	os.write_file(path, g.gen_file_text(f))
+	os.write_file(path, g.gen_file_text(f)) or { panic(err) }
 	format_file(path)
 }

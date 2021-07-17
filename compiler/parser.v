@@ -794,7 +794,7 @@ fn (mut p Parser) consume_enum_body(name string, typ &Type) &Enum {
 		}
 	}
 
-	return &Enum{name, options, fields, typ}
+	return unsafe { &Enum{name, options, fields, typ} }
 }
 
 fn (mut p Parser) consume_enum() ?&Enum {
@@ -1236,7 +1236,7 @@ fn (mut p Parser) consume_message_body(name string, typ &Type) &Message {
 		p.report_error('Bad syntax: `$ident` not expected here')
 	}
 
-	return &Message{name, fields, enums, messages, extends, extensions, options, oneofs, map_fields, reserveds, typ}
+	return unsafe { &Message{name, fields, enums, messages, extends, extensions, options, oneofs, map_fields, reserveds, typ} }
 
 }
 
@@ -1571,7 +1571,7 @@ pub fn (mut p Parser) parse_file(filename string, module_override string) &File 
 		println('skipping $filename becuase it has already been parsed')
 		for f in p.files {
 			if f.filename == filename {
-				return f
+				return unsafe { f }
 			}
 		}
 
