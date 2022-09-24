@@ -88,29 +88,30 @@ fn (mut g Gen) gen_enum_definition(type_context []string, e &Enum) {
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('[inline]')
-	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}(e $e_name, num u32) []byte {')
+	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}(e $e_name, num u32) []u8 {')
 	g.text.writeln('return vproto.pack_int32_field(int(e), num)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('[inline]')
-	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}_packed(e []$e_name, num u32) []byte {')
-	g.text.writeln('x := array{data: e.data, len: e.len, element_size: e.element_size, cap: e.cap}')
+	g.text.writeln('fn ${vproto_ifp}pack_${e_full_name}_packed(e []$e_name, num u32) []u8 {')
+	g.text.writeln('x := *(&[]i32(&e)) // array{data: e.data, len: e.len, element_size: e.element_size, cap: e.cap}')
 	g.text.writeln('return vproto.pack_int32_field_packed(x, num)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('[inline]')
-	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $e_name) {')
+	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}(buf []u8, tag_wiretype vproto.WireType) ?(int, $e_name) {')
 	g.text.writeln('i, v := vproto.unpack_int32_field(buf, tag_wiretype)?')
 	g.text.writeln('return i, ${e_name}(v)')
 	g.text.writeln('}')
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('[inline]')
-	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}_packed(buf []byte, tag_wiretype vproto.WireType) ?(int, []$e_name) {')
+	g.text.writeln('fn ${vproto_ifp}unpack_${e_full_name}_packed(buf []u8, tag_wiretype vproto.WireType) ?(int, []$e_name) {')
 	g.text.writeln('i, v := vproto.unpack_int32_field_packed(buf, tag_wiretype)?')
-	g.text.writeln('return i, array {data: v.data, len: v.len, cap: v.cap, element_size: v.element_size}')
+	g.text.writeln('x := *(&[]${e_name}(&v))')
+	g.text.writeln('return i, x // array {data: v.data, len: v.len, cap: v.cap, element_size: v.element_size}')
 	g.text.writeln('}')
 
 	// TODO helper functions here 
@@ -303,10 +304,10 @@ fn key_default_value(v_type string) string {
 			return '\'\''
 		}
 
-		'[]byte' {
+		'[]u8' {
 			// Keys cant be this type but value_default_value uses this for
 			// its .other case
-			return '[]byte{}'
+			return '[]u8{}'
 		}
 
 		else {
@@ -423,10 +424,10 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 	mut field_pack_text := strings.new_builder(100)
 	mut field_unpack_text := strings.new_builder(100)
 
-	field_pack_text.writeln('pub fn (o &$m_name) pack() []byte {')
-	field_pack_text.writeln('${pack_unpack_mut}res := []byte{}') // TODO allocate correct size statically
+	field_pack_text.writeln('pub fn (o &$m_name) pack() []u8 {')
+	field_pack_text.writeln('${pack_unpack_mut}res := []u8{}') // TODO allocate correct size statically
 	
-	field_unpack_text.writeln('pub fn ${m_full_name}_unpack(buf []byte) ?$m_name {')
+	field_unpack_text.writeln('pub fn ${m_full_name}_unpack(buf []u8) ?$m_name {')
 	// Use the internal new_xxx function here so that we get the default values
 	// if they arent sent in the protobuf
 	field_unpack_text.writeln('${pack_unpack_mut}res := ${vproto_ifp}new_${m_full_name}()')
@@ -586,13 +587,13 @@ fn (mut g Gen) gen_message_internal(type_context []string, m &Message) {
 
 	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('[inline]')
-	g.text.writeln('pub fn ${vproto_ifp}pack_${m_full_name}(o $m_name, num u32) []byte {')
+	g.text.writeln('pub fn ${vproto_ifp}pack_${m_full_name}(o $m_name, num u32) []u8 {')
 	g.text.writeln('return vproto.pack_message_field(o.pack(), num)')
 	g.text.writeln('}')
 	
 	g.text.writeln('// FOR INTERNAL USE ONLY')
 	g.text.writeln('[inline]')
-	g.text.writeln('pub fn ${vproto_ifp}unpack_${m_full_name}(buf []byte, tag_wiretype vproto.WireType) ?(int, $m_name) {')
+	g.text.writeln('pub fn ${vproto_ifp}unpack_${m_full_name}(buf []u8, tag_wiretype vproto.WireType) ?(int, $m_name) {')
 	g.text.writeln('i, v := vproto.unpack_message_field(buf, tag_wiretype)?')
 	g.text.writeln('mut unpacked := ${m_full_name}_unpack(v)?')
 	g.text.writeln('return i, unpacked')

@@ -36,13 +36,13 @@ fn zigzag64(v i64) u64 {
 	}
 }
 
-fn int32_pack(value int) []byte {
+fn int32_pack(value int) []u8 {
 	if value < 0 {
-		return [byte(value) | 0x80,
-		byte(value>>7) | 0x80,
-		byte(value>>14) | 0x80,
-		byte(value>>21) | 0x80,
-		byte(value>>28) | 0x80,
+		return [u8(value) | 0x80,
+		u8(value>>7) | 0x80,
+		u8(value>>14) | 0x80,
+		u8(value>>21) | 0x80,
+		u8(value>>28) | 0x80,
 		0xff,
 		0xff,
 		0xff,
@@ -54,8 +54,8 @@ fn int32_pack(value int) []byte {
 	}
 }
 
-fn int32_packed_pack(values []int) []byte {
-	mut packed := []byte{}
+fn int32_packed_pack(values []int) []u8 {
+	mut packed := []u8{}
 
 	for v in values {
 		packed << int32_pack(v)
@@ -64,8 +64,8 @@ fn int32_packed_pack(values []int) []byte {
 	return bytes_pack(packed)
 }
 
-fn uint32_packed_pack(values []u32) []byte {
-	mut packed := []byte{}
+fn uint32_packed_pack(values []u32) []u8 {
+	mut packed := []u8{}
 
 	for v in values {
 		packed << uint32_pack(v)
@@ -74,8 +74,8 @@ fn uint32_packed_pack(values []u32) []byte {
 	return bytes_pack(packed)
 }
 
-fn uint64_packed_pack(values []u64) []byte {
-	mut packed := []byte{}
+fn uint64_packed_pack(values []u64) []u8 {
+	mut packed := []u8{}
 
 	for v in values {
 		packed << uint64_pack(v)
@@ -97,26 +97,26 @@ fn uint64_packed_pack(values []u64) []byte {
  */
 
 
-fn uint32_pack(v u32) []byte {
-	mut res := []byte{}
+fn uint32_pack(v u32) []u8 {
+	mut res := []u8{}
 	mut value := v
 	if value >= 0x80 {
-		res << byte(value | 0x80)
+		res << u8(value | 0x80)
 		value >>= 7
 		if value >= 0x80 {
-			res << byte(value | 0x80)
+			res << u8(value | 0x80)
 			value >>= 7
 			if value >= 0x80 {
-				res << byte(value | 0x80)
+				res << u8(value | 0x80)
 				value >>= 7
 				if value >= 0x80 {
-					res << byte(value | 0x80)
+					res << u8(value | 0x80)
 					value >>= 7
 				}
 			}
 		}
 	}
-	res << byte(value)
+	res << u8(value)
 	return res
 }
 
@@ -133,7 +133,7 @@ fn uint32_pack(v u32) []byte {
  */
 
 
-fn sint32_pack(value int) []byte {
+fn sint32_pack(value int) []u8 {
 	return uint32_pack(zigzag32(value))
 }
 
@@ -150,30 +150,30 @@ fn sint32_pack(value int) []byte {
  */
 
 
-fn uint64_pack(value u64) []byte {
+fn uint64_pack(value u64) []u8 {
 	mut hi := u32(value>>32)
 	lo := *(&u32(&value))
-	mut res := []byte{}
+	mut res := []u8{}
 	if hi == 0 {
 		return uint32_pack(lo)
 	}
-	res << byte((lo)) | 0x80
-	res << byte((lo>>7)) | 0x80
-	res << byte((lo>>14)) | 0x80
-	res << byte((lo>>21)) | 0x80
+	res << u8((lo)) | 0x80
+	res << u8((lo>>7)) | 0x80
+	res << u8((lo>>14)) | 0x80
+	res << u8((lo>>21)) | 0x80
 	if hi < 8 {
-		res << byte((hi<<4) | (lo>>28))
+		res << u8((hi<<4) | (lo>>28))
 		return res
 	}
 	else {
-		res << byte(((hi & 7)<<4) | (lo>>28)) | 0x80
+		res << u8(((hi & 7)<<4) | (lo>>28)) | 0x80
 		hi >>= 3
 	}
 	for hi >= 128 {
-		res << byte(hi) | 0x80
+		res << u8(hi) | 0x80
 		hi >>= 7
 	}
-	res << byte(hi)
+	res << u8(hi)
 	return res
 }
 
@@ -190,7 +190,7 @@ fn uint64_pack(value u64) []byte {
  */
 
 
-fn sint64_pack(value i64) []byte {
+fn sint64_pack(value i64) []u8 {
 	return uint64_pack(zigzag64(value))
 }
 
@@ -207,21 +207,20 @@ fn sint64_pack(value i64) []byte {
  */
 
 
-fn fixed32_pack(value u32) []byte {
-	v := []byte{len: 4}
+fn fixed32_pack(value u32) []u8 {
+	v := []u8{len: 4}
 	unsafe {
-		C.memcpy(&v[0], &value, 4)
+		C.memcpy(v.data, &value, 4)
 	}
 	return v
 }
 
-fn fixed32_packed_pack(values []u32) []byte {
-	return array {
-		data:values.data,
-		element_size: 1, 
-		len: values.len * 4
-		cap: values.cap * 4
+fn fixed32_packed_pack(values []u32) []u8 {
+	v := []u8 {len: values.len * 4}
+	unsafe {
+		C.memcpy(v.data, values.data, v.len)
 	}
+	return v
 }
 
 /**
@@ -241,21 +240,20 @@ fn fixed32_packed_pack(values []u32) []byte {
  */
 
 
-fn fixed64_pack(value u64) []byte {
-	v := []byte{len: 8}
+fn fixed64_pack(value u64) []u8 {
+	v := []u8{len: 8}
 	unsafe {
 		C.memcpy(&v[0], &value, 8)
 	}
 	return v
 }
 
-fn fixed64_packed_pack(values []u32) []byte {
-	return array {
-		data:values.data,
-		element_size: 1, 
-		len: values.len * 8
-		cap: values.cap * 8
+fn fixed64_packed_pack(values []u64) []u8 {
+	v := []u8{len: 8 * values.len}
+	unsafe {
+		C.memcpy(v.data, values.data, v.len)
 	}
+	return v
 }
 
 /**
@@ -273,12 +271,12 @@ fn fixed64_packed_pack(values []u32) []byte {
  */
 
 
-fn boolean_pack(value bool) []byte {
+fn boolean_pack(value bool) []u8 {
 	if value {
-		return [byte(1)]
+		return [u8(1)]
 	}
 	else {
-		return [byte(0)]
+		return [u8(0)]
 	}
 }
 
@@ -299,8 +297,8 @@ fn boolean_pack(value bool) []byte {
  */
 
 
-fn string_pack(str string) []byte {
-	mut out := []byte{}
+fn string_pack(str string) []u8 {
+	mut out := []u8{}
 	if str == '' {
 		out << 0
 		return out
@@ -330,7 +328,7 @@ fn string_pack(str string) []byte {
  */
 
 
-fn tag_pack(id u32) []byte {
+fn tag_pack(id u32) []u8 {
 	if id < (1<<(32 - 3)) {
 		return uint32_pack(id<<3)
 	}
@@ -339,13 +337,13 @@ fn tag_pack(id u32) []byte {
 	}
 }
 
-fn bytes_pack(buf []byte) []byte {
+fn bytes_pack(buf []u8) []u8 {
 	mut ret := uint32_pack(u32(buf.len))
 	ret << buf
 	return ret
 }
 
-fn uint32_unpack(buf []byte) (int,u32) {
+fn uint32_unpack(buf []u8) (int,u32) {
 	mut i := 0
 	mut ret := u32(buf[0] & 0x7f)
 	if buf[0] & 0x80 == 0x80 {
@@ -368,7 +366,7 @@ fn uint32_unpack(buf []byte) (int,u32) {
 	return i,ret
 }
 
-fn int32_unpack(buf []byte) (int,int) {
+fn int32_unpack(buf []u8) (int,int) {
 	// NOTE: negative int32 values are stored as a
 	// twos compliment 64bit integer!
 	// So make sure we get all those tasty bits!
@@ -376,7 +374,7 @@ fn int32_unpack(buf []byte) (int,int) {
 	return i,int(v)
 }
 
-fn int32_unpack_packed(buf []byte) (int, []int) {
+fn int32_unpack_packed(buf []u8) (int, []int) {
 	i, bytes := bytes_unpack(buf)
 
 	mut ret := []int{}
@@ -390,7 +388,7 @@ fn int32_unpack_packed(buf []byte) (int, []int) {
 	return i, ret
 }
 
-fn uint32_unpack_packed(buf []byte) (int, []u32) {
+fn uint32_unpack_packed(buf []u8) (int, []u32) {
 	i, bytes := bytes_unpack(buf)
 
 	mut ret := []u32{}
@@ -404,7 +402,7 @@ fn uint32_unpack_packed(buf []byte) (int, []u32) {
 	return i, ret
 }
 
-fn uint64_unpack_packed(buf []byte) (int, []u64) {
+fn uint64_unpack_packed(buf []u8) (int, []u64) {
 	i, bytes := bytes_unpack(buf)
 
 	mut ret := []u64{}
@@ -427,7 +425,7 @@ fn unzigzag32(v u32) int {
 	}
 }
 
-fn fixed32_unpack(buf []byte) u32 {
+fn fixed32_unpack(buf []u8) u32 {
 	v := u32(0)
 	unsafe {
 		C.memcpy(&v, &buf[0], 4)
@@ -435,7 +433,7 @@ fn fixed32_unpack(buf []byte) u32 {
 	return v
 }
 
-fn fixed32_unpack_packed(buf []byte) (int, []u32) {
+fn fixed32_unpack_packed(buf []u8) (int, []u32) {
 	i, bytes := bytes_unpack(buf)
 
 	len := bytes.len / 4
@@ -448,7 +446,7 @@ fn fixed32_unpack_packed(buf []byte) (int, []u32) {
 	return i, ret
 }
 
-fn fixed64_unpack(buf []byte) u64 {
+fn fixed64_unpack(buf []u8) u64 {
 	v := u64(0)
 	unsafe {
 		C.memcpy(&v, &buf[0], 8)
@@ -456,7 +454,7 @@ fn fixed64_unpack(buf []byte) u64 {
 	return v
 }
 
-fn fixed64_unpack_packed(buf []byte) (int, []u64) {
+fn fixed64_unpack_packed(buf []u8) (int, []u64) {
 	i, bytes := bytes_unpack(buf)
 
 	len := bytes.len / 8
@@ -468,7 +466,7 @@ fn fixed64_unpack_packed(buf []byte) (int, []u64) {
 	return i, ret
 }
 
-fn uint64_unpack(buf []byte) (int,u64) {
+fn uint64_unpack(buf []u8) (int,u64) {
 	mut res := u64(buf[0] & 0x7f)
 
 	mut i := 1
@@ -485,7 +483,7 @@ fn unzigzag64(v u64) i64 {
 	return i64(v>>1)
 }
 
-fn string_unpack(buf []byte) (int,string) {
+fn string_unpack(buf []u8) (int,string) {
 	size_len, str_len := uint32_unpack(buf)
 	if str_len == 0 {
 		return size_len, ''
@@ -494,7 +492,7 @@ fn string_unpack(buf []byte) (int,string) {
 	return int(str_len) + size_len, tos(&buf[size_len], int(str_len)).clone()
 }
 
-fn bytes_unpack(buf []byte) (int,[]byte) {
+fn bytes_unpack(buf []u8) (int,[]u8) {
 	size_len, bytes_len := uint32_unpack(buf)
 	return int(bytes_len) + size_len, buf[size_len..(int(bytes_len)+size_len)].clone()
 }

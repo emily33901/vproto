@@ -7,26 +7,28 @@ pub struct TestMapFields {
 mut:
 	unknown_fields []vproto.UnknownField
 pub mut:
-	map1           map[string]int
-	complexmap     map[string]TestMapFields
+	map1       map[string]int
+	complexmap map[string]TestMapFields
 }
 
-pub fn (o &TestMapFields) pack() []byte {
-	mut res := []byte{}
+pub fn (o &TestMapFields) pack() []u8 {
+	mut res := []u8{}
 	for k, v in o.map1 {
 		mut bytes := vproto.pack_string_field(k, 1)
 		bytes << vproto.pack_int32_field(v, 2)
 		res << vproto.pack_bytes_field(bytes, 1)
 	}
+
 	for k, v in o.complexmap {
 		mut bytes := vproto.pack_string_field(k, 1)
 		bytes << zzz_vproto_internal_pack_testmapfields(v, 2)
 		res << vproto.pack_bytes_field(bytes, 2)
 	}
+
 	return res
 }
 
-pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
+pub fn testmapfields_unpack(buf []u8) ?TestMapFields {
 	mut res := zzz_vproto_internal_new_testmapfields()
 	mut total := 0
 	for total < buf.len {
@@ -38,8 +40,9 @@ pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
 		cur_buf := buf_before_wire_type[tag_wiretype.consumed..]
 		match tag_wiretype.tag {
 			1 {
-				ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type) ?
+				ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type)?
 				mut k := ''
+
 				mut v := int(0)
 				mut bytes_offset := 0
 				for j := 0; j < 2; j++ {
@@ -50,13 +53,13 @@ pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
 					match map_tag_wiretype.tag {
 						1 {
 							map_ii, kk := vproto.unpack_string_field(bytes[bytes_offset..],
-								map_tag_wiretype.wire_type) ?
+								map_tag_wiretype.wire_type)?
 							bytes_offset += map_ii
 							k = kk
 						}
 						2 {
 							map_ii, vv := vproto.unpack_int32_field(bytes[bytes_offset..],
-								map_tag_wiretype.wire_type) ?
+								map_tag_wiretype.wire_type)?
 							bytes_offset += map_ii
 							v = vv
 						}
@@ -69,8 +72,9 @@ pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
 				i = ii
 			}
 			2 {
-				ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type) ?
+				ii, bytes := vproto.unpack_message_field(cur_buf, tag_wiretype.wire_type)?
 				mut k := ''
+
 				mut v := zzz_vproto_internal_new_testmapfields()
 				mut bytes_offset := 0
 				for j := 0; j < 2; j++ {
@@ -81,13 +85,13 @@ pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
 					match map_tag_wiretype.tag {
 						1 {
 							map_ii, kk := vproto.unpack_string_field(bytes[bytes_offset..],
-								map_tag_wiretype.wire_type) ?
+								map_tag_wiretype.wire_type)?
 							bytes_offset += map_ii
 							k = kk
 						}
 						2 {
 							map_ii, vv := zzz_vproto_internal_unpack_testmapfields(bytes[bytes_offset..],
-								map_tag_wiretype.wire_type) ?
+								map_tag_wiretype.wire_type)?
 							bytes_offset += map_ii
 							v = vv
 						}
@@ -101,8 +105,7 @@ pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
 			}
 			else {
 				ii, v := vproto.unpack_unknown_field(cur_buf, tag_wiretype.wire_type)
-				res.unknown_fields <<
-					vproto.UnknownField{tag_wiretype.wire_type, tag_wiretype.tag, v}
+				res.unknown_fields << vproto.UnknownField{tag_wiretype.wire_type, tag_wiretype.tag, v}
 				i = ii
 			}
 		}
@@ -114,34 +117,6 @@ pub fn testmapfields_unpack(buf []byte) ?TestMapFields {
 	return res
 }
 
-[inline]
-pub fn (a TestMapFields) eq(b TestMapFields) bool {
-	return true
-}
-
-[inline]
-pub fn (a TestMapFields) ne(b TestMapFields) bool {
-	return !a.eq(b)
-}
-
-[inline]
-pub fn (a []TestMapFields) eq(b []TestMapFields) bool {
-	if a.len != b.len {
-		return false
-	}
-	for i, _ in a {
-		if a[i].ne(b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-[inline]
-pub fn (a []TestMapFields) ne(b []TestMapFields) bool {
-	return !a.eq(b)
-}
-
 // FOR INTERNAL USE ONLY
 [inline]
 pub fn zzz_vproto_internal_new_testmapfields() TestMapFields {
@@ -150,14 +125,14 @@ pub fn zzz_vproto_internal_new_testmapfields() TestMapFields {
 
 // FOR INTERNAL USE ONLY
 [inline]
-pub fn zzz_vproto_internal_pack_testmapfields(o TestMapFields, num u32) []byte {
+pub fn zzz_vproto_internal_pack_testmapfields(o TestMapFields, num u32) []u8 {
 	return vproto.pack_message_field(o.pack(), num)
 }
 
 // FOR INTERNAL USE ONLY
 [inline]
-pub fn zzz_vproto_internal_unpack_testmapfields(buf []byte, tag_wiretype vproto.WireType) ?(int, TestMapFields) {
-	i, v := vproto.unpack_message_field(buf, tag_wiretype) ?
-	mut unpacked := testmapfields_unpack(v) ?
+pub fn zzz_vproto_internal_unpack_testmapfields(buf []u8, tag_wiretype vproto.WireType) ?(int, TestMapFields) {
+	i, v := vproto.unpack_message_field(buf, tag_wiretype)?
+	mut unpacked := testmapfields_unpack(v)?
 	return i, unpacked
 }

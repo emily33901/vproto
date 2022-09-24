@@ -2,30 +2,29 @@ module main
 
 import flag
 import os
-
-import v.table
 import v.parser
 import v.pref
 import v.fmt
 import v.ast
-
 import compiler
 
 struct Args {
 mut:
-	filename string
-	additional []string
-	out_folder string
-	imports []string
-	quiet bool
+	filename        string
+	additional      []string
+	out_folder      string
+	imports         []string
+	quiet           bool
 	module_override string
-	fp &flag.FlagParser
+	fp              &flag.FlagParser
 }
 
 fn parse_args() Args {
 	mut fp := flag.new_flag_parser(os.args)
 
-	mut args := Args{fp: fp}
+	mut args := Args{
+		fp: fp
+	}
 
 	fp.application('vproto')
 	fp.version('v0.0.1')
@@ -41,25 +40,21 @@ fn parse_args() Args {
 
 	args.imports << im
 
-	args.quiet = fp.bool('quiet',`q`, false, 'Supress warnings and messages')
+	args.quiet = fp.bool('quiet', `q`, false, 'Supress warnings and messages')
 
-	// TODO revert when vlang #5039 is fixed
-	additional := fp.finalize() or { []string{} }
-
-	args.additional = additional
+	args.additional = fp.finalize() or { []string{} }
 
 	return args
 }
 
-fn format_file(path string) {
-	table := table.new_table()
-	ast_file := parser.parse_file(path, table, .parse_comments, &pref.Preferences{is_fmt: true}, &ast.Scope{
-		parent: 0
-	})
+fn format_file(path string) ? {
+	table := ast.new_table()
+	prefs := &pref.Preferences{ is_fmt: true }
+	ast_file := parser.parse_file(path, table, .parse_comments, prefs)
 
-	result := fmt.fmt(ast_file, table, false)
+	result := fmt.fmt(ast_file, table, prefs, false)
 
-	os.write_file(path, result)
+	os.write_file(path, result)?
 }
 
 fn main() {
@@ -71,7 +66,7 @@ fn main() {
 	}
 
 	if !os.is_dir(args.out_folder) {
-		os.mkdir(args.out_folder)
+		os.mkdir(args.out_folder)?
 	}
 
 	mut p := compiler.new_parser(args.quiet, args.imports)
@@ -86,10 +81,11 @@ fn main() {
 
 	mut g := compiler.new_gen(p)
 
-	filename := os.real_path(f.filename).all_after_last(os.path_separator).all_before_last('.') + '_pb.v'
+	filename := os.real_path(f.filename).all_after_last(os.path_separator).all_before_last('.') +
+		'_pb.v'
 
 	path := os.join_path(os.real_path(args.out_folder), filename)
 
-	os.write_file(path, g.gen_file_text(f))
-	format_file(path)
+	os.write_file(path, g.gen_file_text(f))?
+	format_file(path)?
 }

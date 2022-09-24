@@ -26,6 +26,7 @@ pub fn (s SrcLoc) str() string {
 	return '$s.file:$s.line:$s.char'
 }
 
+[heap]
 pub struct Import {
 	weak    bool
 	public  bool
@@ -36,22 +37,26 @@ mut:
 
 // TODO make the distinction between OptionField and FieldOption more distinct
 // or roll them up into one thing!
+[heap]
 pub struct OptionField {
 	ident string
 	value Literal
 }
 
+[heap]
 pub struct FieldOption {
 	ident string
 	value Literal
 }
 
+[heap]
 pub struct EnumField {
 	name    string
 	value   Literal // int literal
 	options []&FieldOption
 }
 
+[heap]
 pub struct Enum {
 	name    string
 	options []&OptionField
@@ -77,11 +82,12 @@ const (
 		'u32', 'u64',
 		'int', 'i64',
 		'bool', 
-		'string', '[]byte']
+		'string', '[]u8']
 	keywords_v    = ['type', 'none', 'module', 'match', 'or', 'select']
 	type_max_scalar_index = 12
 )
 
+[heap]
 pub struct Field {
 	label        string
 	name         string
@@ -92,20 +98,24 @@ pub struct Field {
 	options      []&FieldOption
 }
 
+[heap]
 pub struct Extend {
 	t      string
 	fields []&Field
 }
 
+[heap]
 pub struct Extension {
 	ranges []string
 }
 
+[heap]
 pub struct Oneof {
 	name   string
 	fields []&Field
 }
 
+[heap]
 pub struct MapField {
 	name       string
 	key_type   string
@@ -115,11 +125,13 @@ pub struct MapField {
 	number     string // int literal
 }
 
+[heap]
 pub struct Reserved {
 	is_ranges bool
 	fields    []string
 }
 
+[heap]
 pub struct Message {
 	name       string
 	fields     []&Field
@@ -134,6 +146,7 @@ pub struct Message {
 	typ        &Type
 }
 
+[heap]
 pub struct ServiceMethod {
 	name        string
 	arg_type    string
@@ -142,6 +155,7 @@ pub struct ServiceMethod {
 	return_is_stream bool
 }
 
+[heap]
 pub struct Service {
 	name    string
 	methods  []&ServiceMethod

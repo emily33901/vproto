@@ -2,10 +2,9 @@ module main
 
 import vproto_test
 
-
 fn basic() ? {
 	mut x := vproto_test.Person{}
-	x.name = 'Human person'
+	x.name = 'Human person'	
 	x.id = 100
 	x.email = 'humanperson@humanpeople.org'
 
@@ -16,8 +15,7 @@ fn basic() ? {
 	}
 
 	// TODO compare when im not lazy
-
-	return none
+	return
 }
 
 fn map_fields() ? {
@@ -42,13 +40,12 @@ fn map_fields() ? {
 		}
 	}
 
-	return none
+	return
 }
-
 
 fn test_vproto() ? {
 	basic()?
 	map_fields()?
 
-	return none
+	return 
 }

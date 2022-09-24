@@ -45,7 +45,7 @@ fn test_uint64_fields() {
 	assert t.tag == 100
 	assert t.wire_type == .varint
 	
-	i,v := unpack_uint64_field(int_field_packed[t.consumed..], .varint)
+	i,v := unpack_uint64_field(int_field_packed[t.consumed..], .varint) or { panic(err) }
 	assert v == 11111111
 	assert i == 4
 }
@@ -73,13 +73,13 @@ fn test_uint64_fields() {
 // assert i == 3
 // }
 fn test_bytes_field() {
-	bytes_field_packed := pack_bytes_field([byte(0), 1, 2, 3, 4], 100)
+	bytes_field_packed := pack_bytes_field([u8(0), 1, 2, 3, 4], 100)
 	t := unpack_tag_wire_type(bytes_field_packed) or {
 		panic('$err')
 	}
 	assert t.tag == 100
 	assert t.wire_type == .length_prefixed
-	consumed,v := unpack_bytes_field(bytes_field_packed[t.consumed..], .length_prefixed)
+	consumed,v := unpack_bytes_field(bytes_field_packed[t.consumed..], .length_prefixed) or { panic(err) }
 	assert v.len == 5
 	for i := 0; i < 5; i++ {
 		assert v[i] == i
@@ -95,6 +95,6 @@ fn test_string_field() {
 	}
 	assert t.tag == 100
 	assert t.wire_type == .length_prefixed
-	_,v := unpack_string_field(string_field_packed[t.consumed..], .length_prefixed)
+	_,v := unpack_string_field(string_field_packed[t.consumed..], .length_prefixed) or { panic(err) }
 	assert v == str
 }

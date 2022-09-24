@@ -1,5 +1,6 @@
 module compiler
 
+[heap]
 pub struct Type {
 	name string
 	full_name string // Full canonicalised name

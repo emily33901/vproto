@@ -5,6 +5,7 @@ pub enum ProtoSyntax {
 	proto3
 }
 
+[heap]
 pub struct File {
 mut:
 	syntax ProtoSyntax // syntax of the file
